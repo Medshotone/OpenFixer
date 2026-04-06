@@ -24,8 +24,7 @@ export const JiraRoutes = lazy(() =>
       async (c) => {
         const cfg = Jira.get(Instance.project.id)
         if (!cfg) return c.json(null)
-        const { token: _, ...safe } = cfg
-        return c.json(safe)
+        return c.json(Jira.Info.omit({ token: true }).parse(cfg))
       },
     )
     .put(
@@ -45,8 +44,7 @@ export const JiraRoutes = lazy(() =>
       validator("json", Jira.UpsertInput),
       async (c) => {
         const cfg = Jira.upsert(Instance.project.id, c.req.valid("json"))
-        const { token: _, ...safe } = cfg
-        return c.json(safe)
+        return c.json(Jira.Info.omit({ token: true }).parse(cfg))
       },
     )
     .delete(
@@ -83,9 +81,9 @@ export const JiraRoutes = lazy(() =>
       }),
       validator("json", Jira.UpsertInput.pick({ url: true, email: true, token: true, project_key: true })),
       async (c) => {
-        const { url, email, token, project_key } = c.req.valid("json")
-        const res = await fetch(`${url}/rest/api/3/project/${project_key}`, {
-          headers: { Authorization: `Basic ${btoa(`${email}:${token}`)}`, Accept: "application/json" },
+        const body = c.req.valid("json")
+        const res = await fetch(`${body.url}/rest/api/3/project/${body.project_key}`, {
+          headers: { Authorization: `Basic ${btoa(`${body.email}:${body.token}`)}`, Accept: "application/json" },
         }).catch(() => null)
         return c.json({ ok: res?.ok ?? false })
       },
