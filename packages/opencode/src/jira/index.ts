@@ -28,10 +28,9 @@ export namespace Jira {
   export type UpsertInput = z.infer<typeof UpsertInput>
 
   export function get(pid: string): Info | undefined {
-    const row = Database.use((db) =>
+    return Database.use((db) =>
       db.select().from(JiraConfigTable).where(eq(JiraConfigTable.project_id, pid as ProjectID)).get(),
     )
-    return row ?? undefined
   }
 
   export function upsert(pid: string, data: UpsertInput): Info {
