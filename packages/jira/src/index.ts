@@ -221,29 +221,31 @@ async function poll(dir: string) {
           console.error(`[jira] ${issue.key}: commit failed — ${committed.out}`)
           await client(dir).experimental.workspace.remove({ id: space.data.id, directory: dir })
         } else {
-          const pushed = await run(space.data.directory, ["git", "push", "origin", space.data.branch])
+          const bbToken = (await client(dir).jira.bitbucketToken({ directory: dir })).data as string | null
+          const remote = (await run(space.data.directory, ["git", "remote", "get-url", "origin"])).out
+          const parsed = parseBitbucketRemote(remote)
+          // Push via HTTPS with token to avoid SSH passphrase prompts in non-interactive context
+          const pushUrl = bbToken && parsed
+            ? `https://${encodeURIComponent(cfg.data.email)}:${encodeURIComponent(bbToken)}@bitbucket.org/${parsed.workspace}/${parsed.repo}.git`
+            : null
+          const pushed = pushUrl
+            ? await run(space.data.directory, ["git", "push", pushUrl, space.data.branch])
+            : await run(space.data.directory, ["git", "-c", "core.sshCommand=ssh -o BatchMode=yes", "push", "origin", space.data.branch])
           if (!pushed.ok) {
             console.error(`[jira] ${issue.key}: push failed — ${pushed.out}`)
             await client(dir).experimental.workspace.remove({ id: space.data.id, directory: dir })
+          } else if (!bbToken) {
+            console.warn(`[jira] ${issue.key}: no Bitbucket token — skipping PR creation`)
+          } else if (!parsed) {
+            console.warn(`[jira] ${issue.key}: remote is not Bitbucket — skipping PR creation`)
           } else {
-            const bbToken = (await client(dir).jira.bitbucketToken({ directory: dir })).data as string | null
-            if (!bbToken) {
-              console.warn(`[jira] ${issue.key}: no Bitbucket token — skipping PR creation`)
-            } else {
-              const remote = (await run(space.data.directory, ["git", "remote", "get-url", "origin"])).out
-              const parsed = parseBitbucketRemote(remote)
-              if (!parsed) {
-                console.warn(`[jira] ${issue.key}: remote is not Bitbucket — skipping PR creation`)
-              } else {
-                prUrl = await bitbucketPR({
-                  email: cfg.data.email, token: bbToken,
-                  branch: space.data.branch, title: msg, body: prBody,
-                  workspace: parsed.workspace, repo: parsed.repo,
-                })
-                if (prUrl) console.log(`[jira] ${issue.key}: PR created — ${prUrl}`)
-                else console.error(`[jira] ${issue.key}: PR creation failed`)
-              }
-            }
+            prUrl = await bitbucketPR({
+              email: cfg.data.email, token: bbToken,
+              branch: space.data.branch, title: msg, body: prBody,
+              workspace: parsed.workspace, repo: parsed.repo,
+            })
+            if (prUrl) console.log(`[jira] ${issue.key}: PR created — ${prUrl}`)
+            else console.error(`[jira] ${issue.key}: PR creation failed`)
           }
         }
       }
