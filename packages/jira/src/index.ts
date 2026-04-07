@@ -26,14 +26,8 @@ if (!dirs.length) {
   process.exit(0)
 }
 
-function localTime(d = new Date()) {
-  const p = (n: number) => String(n).padStart(2, "0")
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
-}
-
-const start = new Date().toISOString() // kept as UTC for comment.created comparison (Jira returns ISO)
+const start = new Date().toISOString()
 const processed = new Set<string>()
-const checked = new Map<string, string>()
 const clients = new Map<string, ReturnType<typeof createOpencodeClient>>()
 
 function client(dir: string) {
@@ -71,17 +65,16 @@ async function poll(dir: string) {
 
   const auth = btoa(`${cfg.data.email}:${token}`)
   const headers = { Authorization: `Basic ${auth}`, Accept: "application/json" }
-  const since = checked.get(dir) ?? localTime(new Date(Date.now() - cfg.data.interval * 2 * 1000))
-  const jql = `project=${cfg.data.project_key} AND comment ~ "@OpenFixer" AND updated >= "${since}"`
+  const back = Math.ceil(cfg.data.interval * 2 / 60)
+  const jql = `project=${cfg.data.project_key} AND comment ~ "@OpenFixer" AND updated >= "-${back}m" ORDER BY updated DESC`
 
-  console.log(`[jira] ${cfg.data.project_key}: polling since ${since}`)
+  console.log(`[jira] ${cfg.data.project_key}: polling (last ${back}m)`)
 
   const res = await fetch(`${cfg.data.url}/rest/api/3/search/jql`, {
     method: "POST",
     headers: { ...headers, "Content-Type": "application/json" },
     body: JSON.stringify({ jql, fields: ["summary", "description", "status", "assignee"] }),
   }).catch(() => null)
-
   if (!res) {
     console.error(`[jira] ${cfg.data.project_key}: network error reaching Jira`)
     return
@@ -90,9 +83,6 @@ async function poll(dir: string) {
     console.error(`[jira] ${cfg.data.project_key}: Jira API error ${res.status} ${res.statusText}`)
     return
   }
-
-  // update only after successful fetch to avoid missing issues on transient failures
-  checked.set(dir, localTime())
 
   const { issues } = (await res.json()) as { issues: { key: string; fields: IssueFields }[] }
   console.log(`[jira] ${cfg.data.project_key}: found ${issues.length} updated issue(s)`)
@@ -189,7 +179,6 @@ function mdToAdf(md: string): AdfNode[] {
     const line = lines[i]
     if (!line.trim()) { i++; continue }
 
-    // fenced code block
     if (line.startsWith("```")) {
       const lang = line.slice(3).trim() || undefined
       const code: string[] = []
@@ -200,29 +189,23 @@ function mdToAdf(md: string): AdfNode[] {
       continue
     }
 
-    // heading
     const hm = line.match(/^(#{1,6})\s+(.+)/)
     if (hm) { blocks.push({ type: "heading", attrs: { level: hm[1].length }, content: inline(hm[2]) }); i++; continue }
 
-    // table
     if (line.startsWith("|")) {
       const rows: AdfNode[] = []
       let header = true
       while (i < lines.length && lines[i].trim().startsWith("|")) {
         const raw = lines[i++].trim()
-        if (/^\|[-| :]+\|$/.test(raw)) continue // skip separator row
+        if (/^\|[-| :]+\|$/.test(raw)) continue
         const cells = raw.split("|").slice(1, -1).map(c => c.trim())
-        rows.push({
-          type: "tableRow",
-          content: cells.map(c => ({ type: header ? "tableHeader" : "tableCell", attrs: {}, content: [{ type: "paragraph", content: inline(c) }] })),
-        })
+        rows.push({ type: "tableRow", content: cells.map(c => ({ type: header ? "tableHeader" : "tableCell", attrs: {}, content: [{ type: "paragraph", content: inline(c) }] })) })
         header = false
       }
       if (rows.length) blocks.push({ type: "table", attrs: { isNumberColumnEnabled: false, layout: "default" }, content: rows })
       continue
     }
 
-    // bullet list
     if (/^[-*+]\s/.test(line)) {
       const items: AdfNode[] = []
       while (i < lines.length && /^[-*+]\s/.test(lines[i]))
@@ -231,7 +214,6 @@ function mdToAdf(md: string): AdfNode[] {
       continue
     }
 
-    // ordered list
     if (/^\d+[.)]\s/.test(line)) {
       const items: AdfNode[] = []
       while (i < lines.length && /^\d+[.)]\s/.test(lines[i]))
@@ -240,7 +222,6 @@ function mdToAdf(md: string): AdfNode[] {
       continue
     }
 
-    // paragraph — collect until blank or block-level line
     const para: string[] = []
     while (i < lines.length && lines[i].trim() && !/^#{1,6}\s/.test(lines[i]) && !/^[-*+]\s/.test(lines[i]) && !/^\d+[.)]\s/.test(lines[i]) && !lines[i].startsWith("```") && !lines[i].startsWith("|"))
       para.push(lines[i++])
@@ -280,6 +261,17 @@ for (const dir of dirs) {
     console.log(`[jira] Skipping ${dir} — Jira not enabled`)
     continue
   }
+
+  const token = (await client(dir).jira.token({ directory: dir }).catch(() => null))?.data
+  if (token) {
+    const auth = btoa(`${cfg.data.email}:${token}`)
+    const me = await fetch(`${cfg.data.url}/rest/api/3/myself`, {
+      headers: { Authorization: `Basic ${auth}`, Accept: "application/json" },
+    }).then(r => r.json() as Promise<{ displayName: string; timeZone: string }>).catch(() => null)
+    if (me) console.log(`[jira] ${cfg.data.project_key}: connected as "${me.displayName}", Jira timezone: ${me.timeZone}`)
+    else console.warn(`[jira] ${cfg.data.project_key}: could not verify Jira connection`)
+  }
+
   console.log(`[jira] Starting poller for ${dir} (project: ${cfg.data.project_key}, interval: ${cfg.data.interval}s)`)
   poll(dir)
   setInterval(() => poll(dir), cfg.data.interval * 1000)
