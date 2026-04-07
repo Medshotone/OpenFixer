@@ -39,7 +39,7 @@ async function poll(dir: string) {
   const auth = btoa(`${cfg.data.email}:${token}`)
   const headers = { Authorization: `Basic ${auth}`, Accept: "application/json" }
   const since = checked.get(dir) ?? new Date(Date.now() - cfg.data.interval * 2 * 1000).toISOString().replace("T", " ").slice(0, 16)
-  const jql = encodeURIComponent(`project=${cfg.data.project_key} AND comment ~ "@opencode" AND updated >= "${since}"`)
+  const jql = encodeURIComponent(`project=${cfg.data.project_key} AND comment ~ "@OpenFixer" AND updated >= "${since}"`)
 
   const res = await fetch(`${cfg.data.url}/rest/api/3/search?jql=${jql}&fields=summary,description,status,assignee`, { headers }).catch(() => null)
   if (!res?.ok) return
@@ -59,10 +59,10 @@ async function poll(dir: string) {
       if (processed.has(key)) continue
 
       const text = extract(comment.body)
-      if (!text.includes("@opencode")) continue
+      if (!text.toLowerCase().includes("@openfixer")) continue
 
       processed.add(key)
-      console.log(`[jira] Processing @opencode in ${issue.key} comment ${comment.id}`)
+      console.log(`[jira] Processing @OpenFixer in ${issue.key} comment ${comment.id}`)
 
       const session = await client(dir).session.create({ title: `Jira: ${issue.key} - ${issue.fields.summary}`, directory: dir })
       if (session.error) continue
@@ -109,8 +109,8 @@ function context(issue: { key: string; fields: IssueFields }, comment: string): 
 **Description**:
 ${extract(issue.fields.description) || "(no description)"}
 
-**Request from @opencode mention**:
-${comment.replace(/@opencode/gi, "").trim()}`
+**Request from @OpenFixer mention**:
+${comment.replace(/@openfixer/gi, "").trim()}`
 }
 
 for (const dir of dirs) {
