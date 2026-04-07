@@ -209,7 +209,7 @@ async function poll(dir: string) {
           if (!pushed.ok) {
             console.error(`[jira] ${issue.key}: push failed — ${pushed.out}`)
           } else {
-            const bbToken = (await client(dir).jira.bitbucketToken({ directory: dir })).data
+            const bbToken = (await client(dir).jira.bitbucketToken({ directory: dir })).data as string | null
             if (!bbToken) {
               console.warn(`[jira] ${issue.key}: no Bitbucket token — skipping PR creation`)
             } else {
