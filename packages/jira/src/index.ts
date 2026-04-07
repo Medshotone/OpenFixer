@@ -170,9 +170,11 @@ async function poll(dir: string) {
       }
       console.log(`[jira] ${issue.key}: workspace ready, creating session...`)
 
-      const session = await client(dir).session.create({
+      // Use workspace-scoped client so requests route to the worktree directory
+      const wc = createOpencodeClient({ baseUrl: base, directory: dir, experimental_workspaceID: space.data.id })
+
+      const session = await wc.session.create({
         title: `Jira: ${issue.key} - ${issue.fields.summary}`,
-        directory: dir,
         workspaceID: space.data.id,
       })
       if (session.error) {
@@ -182,9 +184,8 @@ async function poll(dir: string) {
       }
       console.log(`[jira] ${issue.key}: session created (${session.data.id}), sending prompt...`)
 
-      const result = await client(dir).session.prompt({
+      const result = await wc.session.prompt({
         sessionID: session.data.id,
-        directory: dir,
         parts: [{ type: "text", text: context(issue, text, cfg.data.url, comment.id) }],
       })
       if (result.error) {
