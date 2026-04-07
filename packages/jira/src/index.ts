@@ -161,6 +161,15 @@ async function poll(dir: string) {
       }
       console.log(`[jira] ${issue.key}: workspace created (branch: ${space.data.branch})`)
 
+      // boot() is forked — files are checked out async. Force sync checkout before session starts.
+      const checkout = await run(space.data.directory, ["git", "reset", "--hard"])
+      if (!checkout.ok) {
+        console.error(`[jira] ${issue.key}: workspace checkout failed — ${checkout.out}`)
+        await client(dir).experimental.workspace.remove({ id: space.data.id, directory: dir })
+        continue
+      }
+      console.log(`[jira] ${issue.key}: workspace ready, creating session...`)
+
       const session = await client(dir).session.create({
         title: `Jira: ${issue.key} - ${issue.fields.summary}`,
         directory: dir,
