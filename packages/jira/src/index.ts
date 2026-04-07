@@ -215,10 +215,12 @@ async function poll(dir: string) {
         const committed = await run(space.data.directory, ["git", "commit", "-m", msg])
         if (!committed.ok) {
           console.error(`[jira] ${issue.key}: commit failed — ${committed.out}`)
+          await client(dir).experimental.workspace.remove({ id: space.data.id, directory: dir })
         } else {
           const pushed = await run(space.data.directory, ["git", "push", "origin", space.data.branch])
           if (!pushed.ok) {
             console.error(`[jira] ${issue.key}: push failed — ${pushed.out}`)
+            await client(dir).experimental.workspace.remove({ id: space.data.id, directory: dir })
           } else {
             const bbToken = (await client(dir).jira.bitbucketToken({ directory: dir })).data as string | null
             if (!bbToken) {
