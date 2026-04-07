@@ -1,15 +1,14 @@
-import { createOpencode, createOpencodeClient } from "@opencode-ai/sdk/v2"
+import { createOpencodeClient } from "@opencode-ai/sdk/v2"
 import type { TextPart } from "@opencode-ai/sdk/v2"
 
-console.log("Starting opencode server...")
-const { server } = await createOpencode({ port: 0 })
-console.log("Opencode server ready at", server.url)
+// Connect to already-running opencode server (default port 4096, override with OPENCODE_SERVER_URL)
+const base = process.env.OPENCODE_SERVER_URL ?? "http://127.0.0.1:4096"
 
 // Use CLI args if provided, otherwise discover from DB
 const argDirs = process.argv.slice(2)
 const dirs = argDirs.length
   ? argDirs
-  : await createOpencodeClient({ baseUrl: server.url })
+  : await createOpencodeClient({ baseUrl: base })
       .global.jira.dirs()
       .then((r) => r.data ?? [])
       .catch(() => [] as string[])
@@ -24,7 +23,7 @@ const checked = new Map<string, string>()
 const clients = new Map<string, ReturnType<typeof createOpencodeClient>>()
 
 function client(dir: string) {
-  if (!clients.has(dir)) clients.set(dir, createOpencodeClient({ baseUrl: server.url, directory: dir }))
+  if (!clients.has(dir)) clients.set(dir, createOpencodeClient({ baseUrl: base, directory: dir }))
   return clients.get(dir)!
 }
 
