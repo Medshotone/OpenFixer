@@ -65,7 +65,7 @@ async function poll(dir: string) {
 
   const auth = btoa(`${cfg.data.email}:${token}`)
   const headers = { Authorization: `Basic ${auth}`, Accept: "application/json" }
-  const back = Math.ceil(cfg.data.interval * 2 / 60)
+  const back = Math.max(Math.ceil(cfg.data.interval / 60) + 2, 5)
   const jql = `project=${cfg.data.project_key} AND comment ~ "@OpenFixer" AND updated >= "-${back}m" ORDER BY updated DESC`
 
   console.log(`[jira] ${cfg.data.project_key}: polling (last ${back}m)`)
