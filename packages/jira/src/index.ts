@@ -170,8 +170,8 @@ async function poll(dir: string) {
       }
       console.log(`[jira] ${issue.key}: workspace ready, creating session...`)
 
-      // Use workspace-scoped client so requests route to the worktree directory
-      const wc = createOpencodeClient({ baseUrl: base, directory: dir, experimental_workspaceID: space.data.id })
+      // Use worktree directory so POST requests (session.create/prompt) route to the right Instance
+      const wc = createOpencodeClient({ baseUrl: base, directory: space.data.directory, experimental_workspaceID: space.data.id })
 
       const session = await wc.session.create({
         title: `Jira: ${issue.key} - ${issue.fields.summary}`,
