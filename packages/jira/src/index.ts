@@ -29,6 +29,16 @@ if (!dirs.length) {
 const start = new Date().toISOString()
 const processed = new Set<string>()
 const clients = new Map<string, ReturnType<typeof createOpencodeClient>>()
+const zones = new Map<string, string>()
+const lastPoll = new Map<string, Date>()
+
+function jiraTime(date: Date, zone: string) {
+  return new Intl.DateTimeFormat("sv-SE", {
+    timeZone: zone,
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit",
+  }).format(date)
+}
 
 function client(dir: string) {
   if (!clients.has(dir)) clients.set(dir, createOpencodeClient({ baseUrl: base, directory: dir }))
@@ -65,10 +75,12 @@ async function poll(dir: string) {
 
   const auth = btoa(`${cfg.data.email}:${token}`)
   const headers = { Authorization: `Basic ${auth}`, Accept: "application/json" }
-  const back = Math.max(Math.ceil(cfg.data.interval / 60) + 2, 5)
-  const jql = `project=${cfg.data.project_key} AND comment ~ "@OpenFixer" AND updated >= "-${back}m" ORDER BY updated DESC`
+  const zone = zones.get(dir) ?? "UTC"
+  const since = jiraTime(lastPoll.get(dir) ?? new Date(start), zone)
+  lastPoll.set(dir, new Date())
+  const jql = `project=${cfg.data.project_key} AND comment ~ "@OpenFixer" AND updated >= "${since}" ORDER BY updated DESC`
 
-  console.log(`[jira] ${cfg.data.project_key}: polling (last ${back}m)`)
+  console.log(`[jira] ${cfg.data.project_key}: polling since ${since} (${zone})`)
 
   const res = await fetch(`${cfg.data.url}/rest/api/3/search/jql`, {
     method: "POST",
@@ -268,8 +280,10 @@ for (const dir of dirs) {
     const me = await fetch(`${cfg.data.url}/rest/api/3/myself`, {
       headers: { Authorization: `Basic ${auth}`, Accept: "application/json" },
     }).then(r => r.json() as Promise<{ displayName: string; timeZone: string }>).catch(() => null)
-    if (me) console.log(`[jira] ${cfg.data.project_key}: connected as "${me.displayName}", Jira timezone: ${me.timeZone}`)
-    else console.warn(`[jira] ${cfg.data.project_key}: could not verify Jira connection`)
+    if (me) {
+      zones.set(dir, me.timeZone)
+      console.log(`[jira] ${cfg.data.project_key}: connected as "${me.displayName}", Jira timezone: ${me.timeZone}`)
+    } else console.warn(`[jira] ${cfg.data.project_key}: could not verify Jira connection`)
   }
 
   console.log(`[jira] Starting poller for ${dir} (project: ${cfg.data.project_key}, interval: ${cfg.data.interval}s)`)
