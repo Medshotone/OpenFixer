@@ -1,6 +1,7 @@
 import { Button } from "@opencode-ai/ui/button"
 import { useDialog } from "@opencode-ai/ui/context/dialog"
 import { Dialog } from "@opencode-ai/ui/dialog"
+import { IconButton } from "@opencode-ai/ui/icon-button"
 import { TextField } from "@opencode-ai/ui/text-field"
 import { useMutation } from "@tanstack/solid-query"
 import { createEffect, Show } from "solid-js"
@@ -21,19 +22,24 @@ export function DialogJiraSettings(props: { project: LocalProject }) {
     project_key: "",
     interval: 30,
     enabled: true,
+    showToken: false,
     result: null as boolean | null,
     testing: false,
   })
 
   createEffect(async () => {
-    const res = await globalSDK.client.jira.get({ directory: props.project.worktree })
-    if (res.data) {
-      setStore("url", res.data.url ?? "")
-      setStore("email", res.data.email ?? "")
-      setStore("project_key", res.data.project_key ?? "")
-      setStore("interval", res.data.interval ?? 30)
-      setStore("enabled", res.data.enabled ?? true)
+    const [cfg, tok] = await Promise.all([
+      globalSDK.client.jira.get({ directory: props.project.worktree }),
+      globalSDK.client.jira.token({ directory: props.project.worktree }),
+    ])
+    if (cfg.data) {
+      setStore("url", cfg.data.url ?? "")
+      setStore("email", cfg.data.email ?? "")
+      setStore("project_key", cfg.data.project_key ?? "")
+      setStore("interval", cfg.data.interval ?? 30)
+      setStore("enabled", cfg.data.enabled ?? true)
     }
+    if (tok.data) setStore("token", tok.data)
   })
 
   const saveMutation = useMutation(() => ({
@@ -90,13 +96,26 @@ export function DialogJiraSettings(props: { project: LocalProject }) {
             value={store.email}
             onChange={(v) => setStore("email", v)}
           />
-          <TextField
-            type="password"
-            label={language.t("dialog.jira.token")}
-            placeholder={language.t("dialog.jira.token.placeholder")}
-            value={store.token}
-            onChange={(v) => setStore("token", v)}
-          />
+          <div class="flex flex-col gap-1.5">
+            <div class="flex items-end gap-2">
+              <div class="flex-1">
+                <TextField
+                  type={store.showToken ? "text" : "password"}
+                  label={language.t("dialog.jira.token")}
+                  placeholder={language.t("dialog.jira.token.placeholder")}
+                  value={store.token}
+                  onChange={(v) => setStore("token", v)}
+                />
+              </div>
+              <IconButton
+                type="button"
+                icon="eye"
+                variant={store.showToken ? "primary" : "ghost"}
+                aria-label={store.showToken ? "Hide token" : "Show token"}
+                onClick={() => setStore("showToken", !store.showToken)}
+              />
+            </div>
+          </div>
           <TextField
             label={language.t("dialog.jira.projectKey")}
             placeholder={language.t("dialog.jira.projectKey.placeholder")}
