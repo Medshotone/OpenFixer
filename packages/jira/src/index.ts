@@ -199,21 +199,16 @@ async function poll(dir: string) {
         .map((p) => p.text)
         .join("\n")
 
-      const diff = await wc.vcs.diff({ mode: "branch" })
-      console.log(`[jira] ${issue.key}: vcs.diff — error=${diff.error ?? "none"}, files=${JSON.stringify(diff.data?.map(f => f.file) ?? null)}`)
-
-      // cross-check with git status directly in worktree
-      const status = await run(space.data.directory, ["git", "status", "--short"])
-      console.log(`[jira] ${issue.key}: git status — "${status.out || "(clean)"}" (ok=${status.ok})`)
-
-      const changed = (diff.data?.length ?? 0) > 0
+      const status = await run(space.data.directory, ["git", "status", "--porcelain"])
+      const changed = status.out.length > 0
+      console.log(`[jira] ${issue.key}: git status — ${changed ? status.out : "(clean)"}`)
 
       let prUrl: string | null = null
       if (!changed) {
         console.log(`[jira] ${issue.key}: no file changes, removing workspace`)
         await client(dir).experimental.workspace.remove({ id: space.data.id, directory: dir })
       } else {
-        console.log(`[jira] ${issue.key}: ${diff.data!.length} file(s) changed — committing and opening PR`)
+        console.log(`[jira] ${issue.key}: changes detected — committing and opening PR`)
         const msg = `fix(${issue.key}): ${issue.fields.summary}`
         const prBody = `Resolves: ${cfg.data.url}/browse/${issue.key}\n\nTriggered by @OpenFixer mention in Jira.`
         await run(space.data.directory, ["git", "add", "-A"])
