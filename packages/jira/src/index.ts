@@ -196,6 +196,24 @@ function mdToAdf(md: string): AdfNode[] {
     const hm = line.match(/^(#{1,6})\s+(.+)/)
     if (hm) { blocks.push({ type: "heading", attrs: { level: hm[1].length }, content: inline(hm[2]) }); i++; continue }
 
+    // table
+    if (line.startsWith("|")) {
+      const rows: AdfNode[] = []
+      let header = true
+      while (i < lines.length && lines[i].trim().startsWith("|")) {
+        const raw = lines[i++].trim()
+        if (/^\|[-| :]+\|$/.test(raw)) continue // skip separator row
+        const cells = raw.split("|").slice(1, -1).map(c => c.trim())
+        rows.push({
+          type: "tableRow",
+          content: cells.map(c => ({ type: header ? "tableHeader" : "tableCell", attrs: {}, content: [{ type: "paragraph", content: inline(c) }] })),
+        })
+        header = false
+      }
+      if (rows.length) blocks.push({ type: "table", attrs: { isNumberColumnEnabled: false, layout: "default" }, content: rows })
+      continue
+    }
+
     // bullet list
     if (/^[-*+]\s/.test(line)) {
       const items: AdfNode[] = []
@@ -216,7 +234,7 @@ function mdToAdf(md: string): AdfNode[] {
 
     // paragraph — collect until blank or block-level line
     const para: string[] = []
-    while (i < lines.length && lines[i].trim() && !/^#{1,6}\s/.test(lines[i]) && !/^[-*+]\s/.test(lines[i]) && !/^\d+[.)]\s/.test(lines[i]) && !lines[i].startsWith("```"))
+    while (i < lines.length && lines[i].trim() && !/^#{1,6}\s/.test(lines[i]) && !/^[-*+]\s/.test(lines[i]) && !/^\d+[.)]\s/.test(lines[i]) && !lines[i].startsWith("```") && !lines[i].startsWith("|"))
       para.push(lines[i++])
     if (para.length) {
       const content: AdfNode[] = []
