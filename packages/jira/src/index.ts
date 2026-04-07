@@ -26,15 +26,8 @@ if (!dirs.length) {
   process.exit(0)
 }
 
-const processedFile = Bun.file(`${process.env.HOME ?? "."}/.opencode/jira-processed.json`)
-const processed = new Set<string>(await processedFile.exists() ? (await processedFile.json()) as string[] : [])
-console.log(`[jira] Loaded ${processed.size} previously processed comment(s)`)
-
-async function markProcessed(key: string) {
-  processed.add(key)
-  await Bun.write(processedFile, JSON.stringify([...processed]))
-}
-
+const start = new Date().toISOString()
+const processed = new Set<string>()
 const checked = new Map<string, string>()
 const clients = new Map<string, ReturnType<typeof createOpencodeClient>>()
 
@@ -105,10 +98,11 @@ async function poll(dir: string) {
       console.error(`[jira] ${issue.key}: failed to fetch comments (${cres?.status ?? "network error"})`)
       continue
     }
-    const { comments } = (await cres.json()) as { comments: { id: string; body: unknown; author: { accountId: string; displayName: string } }[] }
+    const { comments } = (await cres.json()) as { comments: { id: string; created: string; body: unknown; author: { accountId: string; displayName: string } }[] }
     console.log(`[jira] ${issue.key}: ${comments.length} comment(s) to scan`)
 
     for (const comment of comments) {
+      if (comment.created < start) continue
       const key = `${issue.key}:${comment.id}`
       if (processed.has(key)) continue
 
@@ -116,7 +110,7 @@ async function poll(dir: string) {
       if (!text.toLowerCase().includes("@openfixer")) continue
 
       console.log(`[jira] ${issue.key} #${comment.id}: @OpenFixer mention found — creating session`)
-      await markProcessed(key)
+      processed.add(key)
 
       const session = await client(dir).session.create({ title: `Jira: ${issue.key} - ${issue.fields.summary}`, directory: dir })
       if (session.error) {
