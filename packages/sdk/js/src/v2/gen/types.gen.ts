@@ -4462,6 +4462,128 @@ export type EventSubscribeResponses = {
 
 export type EventSubscribeResponse = EventSubscribeResponses[keyof EventSubscribeResponses]
 
+export type JiraRemoveData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/jira"
+}
+
+export type JiraRemoveResponses = {
+  /**
+   * Deleted
+   */
+  200: boolean
+}
+
+export type JiraRemoveResponse = JiraRemoveResponses[keyof JiraRemoveResponses]
+
+export type JiraGetData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/jira"
+}
+
+export type JiraGetResponses = {
+  /**
+   * Jira config or null
+   */
+  200: {
+    project_id: string
+    url: string
+    email: string
+    project_key: string
+    interval: number
+    enabled: boolean
+  } | null
+}
+
+export type JiraGetResponse = JiraGetResponses[keyof JiraGetResponses]
+
+export type JiraUpsertData = {
+  body?: {
+    url: string
+    email: string
+    token: string
+    project_key: string
+    interval?: number
+    enabled?: boolean
+  }
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/jira"
+}
+
+export type JiraUpsertErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type JiraUpsertError = JiraUpsertErrors[keyof JiraUpsertErrors]
+
+export type JiraUpsertResponses = {
+  /**
+   * Updated Jira config
+   */
+  200: {
+    project_id: string
+    url: string
+    email: string
+    project_key: string
+    interval: number
+    enabled: boolean
+  }
+}
+
+export type JiraUpsertResponse = JiraUpsertResponses[keyof JiraUpsertResponses]
+
+export type JiraTestData = {
+  body?: {
+    url: string
+    email: string
+    token: string
+    project_key: string
+  }
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/jira/test"
+}
+
+export type JiraTestErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type JiraTestError = JiraTestErrors[keyof JiraTestErrors]
+
+export type JiraTestResponses = {
+  /**
+   * Test result
+   */
+  200: {
+    ok: boolean
+  }
+}
+
+export type JiraTestResponse = JiraTestResponses[keyof JiraTestResponses]
+
 export type McpStatusData = {
   body?: never
   path?: never
