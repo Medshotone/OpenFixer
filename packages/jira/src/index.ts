@@ -176,6 +176,10 @@ async function poll(dir: string) {
       const session = await wc.session.create({
         title: `Jira: ${issue.key} - ${issue.fields.summary}`,
         workspaceID: space.data.id,
+        metadata: {
+          jira_url: `${cfg.data.url}/browse/${issue.key}?focusedCommentId=${comment.id}`,
+          jira_key: issue.key,
+        },
       })
       if (session.error) {
         console.error(`[jira] ${issue.key}: failed to create session — ${session.error}`)
@@ -361,7 +365,6 @@ function context(issue: { key: string; fields: IssueFields }, comment: string, u
   return `You are reviewing a Jira issue. Here is the full context:
 
 **Issue**: ${issue.key} - ${issue.fields.summary}
-**Link**: ${url}/browse/${issue.key}?focusedCommentId=${commentId}
 **Status**: ${issue.fields.status?.name ?? "Unknown"}
 **Assignee**: ${issue.fields.assignee?.displayName ?? "Unassigned"}
 

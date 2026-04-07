@@ -931,6 +931,9 @@ export type Session = {
     archived?: number
   }
   permission?: PermissionRuleset
+  metadata?: {
+    [key: string]: unknown
+  }
   revert?: {
     messageID: string
     partID?: string
@@ -1092,6 +1095,9 @@ export type SyncEventSessionUpdated = {
         archived: number | null
       }
       permission: PermissionRuleset | null
+      metadata: {
+        [key: string]: unknown
+      } | null
       revert: {
         messageID: string
         partID?: string
@@ -1814,6 +1820,9 @@ export type GlobalSession = {
     archived?: number
   }
   permission?: PermissionRuleset
+  metadata?: {
+    [key: string]: unknown
+  }
   revert?: {
     messageID: string
     partID?: string
@@ -3029,6 +3038,9 @@ export type SessionCreateData = {
     title?: string
     permission?: PermissionRuleset
     workspaceID?: string
+    metadata?: {
+      [key: string]: unknown
+    }
   }
   path?: never
   query?: {
