@@ -12,7 +12,8 @@ type Config = z.infer<typeof Config>
 
 export const WorktreeAdaptor: Adaptor = {
   async configure(info) {
-    const worktree = await Worktree.makeWorktreeInfo(info.name ?? undefined)
+    const name = (info.extra as { name?: string } | null)?.name
+    const worktree = await Worktree.makeWorktreeInfo(name ?? info.name ?? undefined)
     return {
       ...info,
       name: worktree.name,

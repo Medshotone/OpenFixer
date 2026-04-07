@@ -45,6 +45,12 @@ function client(dir: string) {
   return clients.get(dir)!
 }
 
+async function run(cwd: string, cmd: string[]) {
+  const p = Bun.spawn(cmd, { cwd, stdout: "pipe", stderr: "pipe" })
+  const [out, err] = await Promise.all([new Response(p.stdout).text(), new Response(p.stderr).text()])
+  return { ok: (await p.exited) === 0, out: (out || err).trim() }
+}
+
 type IssueFields = {
   summary: string
   description: unknown
@@ -117,12 +123,26 @@ async function poll(dir: string) {
       const text = extract(comment.body)
       if (!text.toLowerCase().includes("@openfixer")) continue
 
-      console.log(`[jira] ${issue.key} #${comment.id}: @OpenFixer mention found — creating session`)
+      console.log(`[jira] ${issue.key} #${comment.id}: @OpenFixer mention found — creating workspace`)
       processed.add(key)
 
-      const session = await client(dir).session.create({ title: `Jira: ${issue.key} - ${issue.fields.summary}`, directory: dir })
+      const space = await client(dir).experimental.workspace.create({
+        directory: dir, type: "worktree", branch: null, extra: { name: issue.key.toLowerCase() },
+      })
+      if (space.error || !space.data?.directory || !space.data?.branch) {
+        console.error(`[jira] ${issue.key}: failed to create workspace — ${space.error ?? "no directory"}`)
+        continue
+      }
+      console.log(`[jira] ${issue.key}: workspace created (branch: ${space.data.branch})`)
+
+      const session = await client(dir).session.create({
+        title: `Jira: ${issue.key} - ${issue.fields.summary}`,
+        directory: dir,
+        workspaceID: space.data.id,
+      })
       if (session.error) {
         console.error(`[jira] ${issue.key}: failed to create session — ${session.error}`)
+        await client(dir).experimental.workspace.remove({ id: space.data.id, directory: dir })
         continue
       }
       console.log(`[jira] ${issue.key}: session created (${session.data.id}), sending prompt...`)
@@ -134,6 +154,7 @@ async function poll(dir: string) {
       })
       if (result.error) {
         console.error(`[jira] ${issue.key}: prompt failed — ${result.error}`)
+        await client(dir).experimental.workspace.remove({ id: space.data.id, directory: dir })
         continue
       }
 
@@ -141,12 +162,48 @@ async function poll(dir: string) {
         .filter((p): p is TextPart => p.type === "text")
         .map((p) => p.text)
         .join("\n")
-      if (!reply) {
-        console.warn(`[jira] ${issue.key}: AI returned empty response, skipping comment post`)
+
+      const diff = await client(dir).vcs.diff({ directory: dir, workspace: space.data.id, mode: "git" })
+      const changed = (diff.data?.length ?? 0) > 0
+
+      let prUrl: string | null = null
+      if (!changed) {
+        console.log(`[jira] ${issue.key}: no file changes, removing workspace`)
+        await client(dir).experimental.workspace.remove({ id: space.data.id, directory: dir })
+      } else {
+        console.log(`[jira] ${issue.key}: ${diff.data!.length} file(s) changed — committing and opening PR`)
+        const msg = `fix(${issue.key}): ${issue.fields.summary}`
+        const body = `Resolves: ${cfg.data.url}/browse/${issue.key}\n\nTriggered by @OpenFixer mention in Jira.`
+        await run(space.data.directory, ["git", "add", "-A"])
+        const committed = await run(space.data.directory, ["git", "commit", "-m", msg])
+        if (!committed.ok) {
+          console.error(`[jira] ${issue.key}: commit failed — ${committed.out}`)
+        } else {
+          const pushed = await run(space.data.directory, ["git", "push", "origin", space.data.branch])
+          if (!pushed.ok) {
+            console.error(`[jira] ${issue.key}: push failed — ${pushed.out}`)
+          } else {
+            const pr = await run(space.data.directory, ["gh", "pr", "create",
+              "--base", "main", "--head", space.data.branch,
+              "--title", msg, "--body", body,
+            ])
+            if (pr.ok) {
+              prUrl = pr.out
+              console.log(`[jira] ${issue.key}: PR created — ${prUrl}`)
+            } else {
+              console.error(`[jira] ${issue.key}: PR creation failed — ${pr.out}`)
+            }
+          }
+        }
+      }
+
+      const full = prUrl ? `${reply}\n\n**PR**: ${prUrl}` : reply
+      if (!full) {
+        console.warn(`[jira] ${issue.key}: no reply to post, skipping`)
         continue
       }
 
-      console.log(`[jira] ${issue.key}: posting reply to Jira (${reply.length} chars)...`)
+      console.log(`[jira] ${issue.key}: posting reply to Jira...`)
       const posted = await fetch(`${cfg.data.url}/rest/api/3/issue/${issue.key}/comment`, {
         method: "POST",
         headers: { ...headers, "Content-Type": "application/json" },
@@ -154,7 +211,7 @@ async function poll(dir: string) {
           body: {
             type: "doc", version: 1, content: [
               { type: "paragraph", content: [{ type: "mention", attrs: { id: comment.author.accountId, text: `@${comment.author.displayName}` } }] },
-              ...mdToAdf(reply),
+              ...mdToAdf(full),
             ],
           },
         }),
