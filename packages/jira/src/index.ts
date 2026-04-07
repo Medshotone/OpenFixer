@@ -26,7 +26,12 @@ if (!dirs.length) {
   process.exit(0)
 }
 
-const start = new Date().toISOString()
+function localTime(d = new Date()) {
+  const p = (n: number) => String(n).padStart(2, "0")
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+}
+
+const start = new Date().toISOString() // kept as UTC for comment.created comparison (Jira returns ISO)
 const processed = new Set<string>()
 const checked = new Map<string, string>()
 const clients = new Map<string, ReturnType<typeof createOpencodeClient>>()
@@ -66,7 +71,7 @@ async function poll(dir: string) {
 
   const auth = btoa(`${cfg.data.email}:${token}`)
   const headers = { Authorization: `Basic ${auth}`, Accept: "application/json" }
-  const since = checked.get(dir) ?? new Date(Date.now() - cfg.data.interval * 2 * 1000).toISOString().replace("T", " ").slice(0, 16)
+  const since = checked.get(dir) ?? localTime(new Date(Date.now() - cfg.data.interval * 2 * 1000))
   const jql = `project=${cfg.data.project_key} AND comment ~ "@OpenFixer" AND updated >= "${since}"`
 
   console.log(`[jira] ${cfg.data.project_key}: polling since ${since}`)
@@ -76,6 +81,7 @@ async function poll(dir: string) {
     headers: { ...headers, "Content-Type": "application/json" },
     body: JSON.stringify({ jql, fields: ["summary", "description", "status", "assignee"] }),
   }).catch(() => null)
+
   if (!res) {
     console.error(`[jira] ${cfg.data.project_key}: network error reaching Jira`)
     return
@@ -86,7 +92,7 @@ async function poll(dir: string) {
   }
 
   // update only after successful fetch to avoid missing issues on transient failures
-  checked.set(dir, new Date().toISOString().replace("T", " ").slice(0, 16))
+  checked.set(dir, localTime())
 
   const { issues } = (await res.json()) as { issues: { key: string; fields: IssueFields }[] }
   console.log(`[jira] ${cfg.data.project_key}: found ${issues.length} updated issue(s)`)
