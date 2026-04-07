@@ -1454,6 +1454,14 @@ export default function Layout(props: ParentProps) {
     })
   }
 
+  const showJiraSettingsDialog = (project: LocalProject) => {
+    const run = ++dialogRun
+    void import("@/components/dialog-jira-settings").then((x) => {
+      if (dialogDead || dialogRun !== run) return
+      dialog.show(() => <x.DialogJiraSettings project={project} />)
+    })
+  }
+
   async function chooseProject() {
     function resolve(result: string | string[] | null) {
       if (Array.isArray(result)) {
@@ -2015,6 +2023,7 @@ export default function Layout(props: ParentProps) {
     openSidebar: () => layout.sidebar.open(),
     closeProject,
     showEditProjectDialog,
+    showJiraSettingsDialog,
     toggleProjectWorkspaces,
     workspacesEnabled: (project) => project.vcs === "git" && layout.sidebar.workspaces(project.worktree)(),
     workspaceIds,
