@@ -2196,6 +2196,22 @@ export type GlobalUpgradeResponses = {
 
 export type GlobalUpgradeResponse = GlobalUpgradeResponses[keyof GlobalUpgradeResponses]
 
+export type GlobalJiraDirsData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/global/jira/dirs"
+}
+
+export type GlobalJiraDirsResponses = {
+  /**
+   * List of project directories
+   */
+  200: Array<string>
+}
+
+export type GlobalJiraDirsResponse = GlobalJiraDirsResponses[keyof GlobalJiraDirsResponses]
+
 export type AuthRemoveData = {
   body?: never
   path: {

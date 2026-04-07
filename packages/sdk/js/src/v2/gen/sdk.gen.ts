@@ -46,6 +46,7 @@ import type {
   GlobalDisposeResponses,
   GlobalEventResponses,
   GlobalHealthResponses,
+  GlobalJiraDirsResponses,
   GlobalSyncEventSubscribeResponses,
   GlobalUpgradeErrors,
   GlobalUpgradeResponses,
@@ -290,6 +291,20 @@ export class Config extends HeyApiClient {
   }
 }
 
+export class Jira extends HeyApiClient {
+  /**
+   * List Jira-enabled project directories
+   *
+   * Return the worktree paths of all projects with Jira integration enabled.
+   */
+  public dirs<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
+    return (options?.client ?? this.client).get<GlobalJiraDirsResponses, unknown, ThrowOnError>({
+      url: "/global/jira/dirs",
+      ...options,
+    })
+  }
+}
+
 export class Global extends HeyApiClient {
   /**
    * Get health
@@ -359,6 +374,11 @@ export class Global extends HeyApiClient {
   private _config?: Config
   get config(): Config {
     return (this._config ??= new Config({ client: this.client }))
+  }
+
+  private _jira?: Jira
+  get jira(): Jira {
+    return (this._jira ??= new Jira({ client: this.client }))
   }
 }
 
@@ -3039,7 +3059,7 @@ export class Event extends HeyApiClient {
   }
 }
 
-export class Jira extends HeyApiClient {
+export class Jira2 extends HeyApiClient {
   /**
    * Delete Jira config
    *
@@ -4230,9 +4250,9 @@ export class OpencodeClient extends HeyApiClient {
     return (this._event ??= new Event({ client: this.client }))
   }
 
-  private _jira?: Jira
-  get jira(): Jira {
-    return (this._jira ??= new Jira({ client: this.client }))
+  private _jira?: Jira2
+  get jira(): Jira2 {
+    return (this._jira ??= new Jira2({ client: this.client }))
   }
 
   private _mcp?: Mcp

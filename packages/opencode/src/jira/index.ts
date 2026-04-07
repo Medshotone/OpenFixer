@@ -1,6 +1,7 @@
 import z from "zod"
 import { Database, eq } from "../storage/db"
 import { JiraConfigTable } from "./jira.sql"
+import { ProjectTable } from "../project/project.sql"
 import type { ProjectID } from "../project/schema"
 
 export namespace Jira {
@@ -48,5 +49,16 @@ export namespace Jira {
     Database.use((db) =>
       db.delete(JiraConfigTable).where(eq(JiraConfigTable.project_id, pid as ProjectID)).run(),
     )
+  }
+
+  export function listDirs(): string[] {
+    return Database.use((db) =>
+      db
+        .select({ worktree: ProjectTable.worktree })
+        .from(JiraConfigTable)
+        .innerJoin(ProjectTable, eq(JiraConfigTable.project_id, ProjectTable.id))
+        .where(eq(JiraConfigTable.enabled, true))
+        .all(),
+    ).map((r) => r.worktree)
   }
 }

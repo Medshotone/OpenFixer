@@ -1,16 +1,23 @@
 import { createOpencode, createOpencodeClient } from "@opencode-ai/sdk/v2"
 import type { TextPart } from "@opencode-ai/sdk/v2"
 
-const dirs = process.argv.slice(2)
-
-if (!dirs.length) {
-  console.error("Usage: bun run src/index.ts <project-dir> [project-dir2 ...]")
-  process.exit(1)
-}
-
 console.log("Starting opencode server...")
 const { server } = await createOpencode({ port: 0 })
 console.log("Opencode server ready at", server.url)
+
+// Use CLI args if provided, otherwise discover from DB
+const argDirs = process.argv.slice(2)
+const dirs = argDirs.length
+  ? argDirs
+  : await createOpencodeClient({ baseUrl: server.url })
+      .global.jira.dirs()
+      .then((r) => r.data ?? [])
+      .catch(() => [] as string[])
+
+if (!dirs.length) {
+  console.log("No Jira-enabled projects found. Configure Jira settings in the UI first.")
+  process.exit(0)
+}
 
 const processed = new Set<string>()
 const checked = new Map<string, string>()
