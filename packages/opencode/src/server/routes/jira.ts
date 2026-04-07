@@ -83,6 +83,24 @@ export const JiraRoutes = lazy(() =>
         return c.json(cfg?.token ?? null)
       },
     )
+    .get(
+      "/bitbucket-token",
+      describeRoute({
+        summary: "Get Bitbucket token",
+        description: "Get the raw Bitbucket app password for the current project. For server-side use only.",
+        operationId: "jira.bitbucketToken",
+        responses: {
+          200: {
+            description: "Bitbucket app password or null",
+            content: { "application/json": { schema: resolver(z.string().nullable()) } },
+          },
+        },
+      }),
+      (c) => {
+        const cfg = Jira.get(Instance.project.id)
+        return c.json(cfg?.bitbucket_token ?? null)
+      },
+    )
     .post(
       "/test",
       describeRoute({

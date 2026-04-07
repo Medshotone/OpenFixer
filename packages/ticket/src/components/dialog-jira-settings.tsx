@@ -22,15 +22,18 @@ export function DialogJiraSettings(props: { project: LocalProject }) {
     project_key: "",
     interval: 30,
     enabled: true,
+    bitbucket_token: "",
     showToken: false,
+    showBBToken: false,
     result: null as boolean | null,
     testing: false,
   })
 
   createEffect(async () => {
-    const [cfg, tok] = await Promise.all([
+    const [cfg, tok, bbtok] = await Promise.all([
       globalSDK.client.jira.get({ directory: props.project.worktree }),
       globalSDK.client.jira.token({ directory: props.project.worktree }),
+      globalSDK.client.jira.bitbucketToken({ directory: props.project.worktree }),
     ])
     if (cfg.data) {
       setStore("url", cfg.data.url ?? "")
@@ -40,6 +43,7 @@ export function DialogJiraSettings(props: { project: LocalProject }) {
       setStore("enabled", cfg.data.enabled ?? true)
     }
     if (tok.data) setStore("token", tok.data)
+    if (bbtok.data) setStore("bitbucket_token", bbtok.data)
   })
 
   const saveMutation = useMutation(() => ({
@@ -52,6 +56,7 @@ export function DialogJiraSettings(props: { project: LocalProject }) {
         project_key: store.project_key.trim().toUpperCase(),
         interval: store.interval,
         enabled: store.enabled,
+        bitbucket_token: store.bitbucket_token.trim() || null,
       })
       dialog.close()
     },
@@ -113,6 +118,26 @@ export function DialogJiraSettings(props: { project: LocalProject }) {
                 variant={store.showToken ? "primary" : "ghost"}
                 aria-label={store.showToken ? "Hide token" : "Show token"}
                 onClick={() => setStore("showToken", !store.showToken)}
+              />
+            </div>
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <div class="flex items-end gap-2">
+              <div class="flex-1">
+                <TextField
+                  type={store.showBBToken ? "text" : "password"}
+                  label={language.t("dialog.jira.bitbucketToken")}
+                  placeholder={language.t("dialog.jira.bitbucketToken.placeholder")}
+                  value={store.bitbucket_token}
+                  onChange={(v) => setStore("bitbucket_token", v)}
+                />
+              </div>
+              <IconButton
+                type="button"
+                icon="eye"
+                variant={store.showBBToken ? "primary" : "ghost"}
+                aria-label={store.showBBToken ? "Hide token" : "Show token"}
+                onClick={() => setStore("showBBToken", !store.showBBToken)}
               />
             </div>
           </div>

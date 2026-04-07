@@ -365,6 +365,8 @@ export const dict = {
   "dialog.jira.email.placeholder": "you@company.com",
   "dialog.jira.token": "API Token",
   "dialog.jira.token.placeholder": "Your Atlassian API token",
+  "dialog.jira.bitbucketToken": "Bitbucket App Password",
+  "dialog.jira.bitbucketToken.placeholder": "Optional — required for opening PRs on Bitbucket",
   "dialog.jira.projectKey": "Project Key",
   "dialog.jira.projectKey.placeholder": "e.g. AILA",
   "dialog.jira.interval": "Polling Interval (seconds)",

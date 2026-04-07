@@ -4518,6 +4518,7 @@ export type JiraGetResponses = {
     project_key: string
     interval: number
     enabled: boolean
+    bitbucket_token: string | null
   } | null
 }
 
@@ -4531,6 +4532,7 @@ export type JiraUpsertData = {
     project_key: string
     interval?: number
     enabled?: boolean
+    bitbucket_token?: string | null
   }
   path?: never
   query?: {
@@ -4560,6 +4562,7 @@ export type JiraUpsertResponses = {
     project_key: string
     interval: number
     enabled: boolean
+    bitbucket_token: string | null
   }
 }
 
@@ -4583,6 +4586,25 @@ export type JiraTokenResponses = {
 }
 
 export type JiraTokenResponse = JiraTokenResponses[keyof JiraTokenResponses]
+
+export type JiraBitbucketTokenData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/jira/bitbucket-token"
+}
+
+export type JiraBitbucketTokenResponses = {
+  /**
+   * Bitbucket app password or null
+   */
+  200: string | null
+}
+
+export type JiraBitbucketTokenResponse = JiraBitbucketTokenResponses[keyof JiraBitbucketTokenResponses]
 
 export type JiraTestData = {
   body?: {

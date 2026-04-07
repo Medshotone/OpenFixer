@@ -51,6 +51,7 @@ import type {
   GlobalUpgradeErrors,
   GlobalUpgradeResponses,
   InstanceDisposeResponses,
+  JiraBitbucketTokenResponses,
   JiraGetResponses,
   JiraRemoveResponses,
   JiraTestErrors,
@@ -3136,6 +3137,7 @@ export class Jira2 extends HeyApiClient {
       project_key?: string
       interval?: number
       enabled?: boolean
+      bitbucket_token?: string | null
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -3152,6 +3154,7 @@ export class Jira2 extends HeyApiClient {
             { in: "body", key: "project_key" },
             { in: "body", key: "interval" },
             { in: "body", key: "enabled" },
+            { in: "body", key: "bitbucket_token" },
           ],
         },
       ],
@@ -3193,6 +3196,36 @@ export class Jira2 extends HeyApiClient {
     )
     return (options?.client ?? this.client).get<JiraTokenResponses, unknown, ThrowOnError>({
       url: "/jira/token",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Get Bitbucket token
+   *
+   * Get the raw Bitbucket app password for the current project. For server-side use only.
+   */
+  public bitbucketToken<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<JiraBitbucketTokenResponses, unknown, ThrowOnError>({
+      url: "/jira/bitbucket-token",
       ...options,
       ...params,
     })

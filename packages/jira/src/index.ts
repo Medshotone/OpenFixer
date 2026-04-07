@@ -51,6 +51,32 @@ async function run(cwd: string, cmd: string[]) {
   return { ok: (await p.exited) === 0, out: (out || err).trim() }
 }
 
+function parseBitbucketRemote(url: string) {
+  const m = url.match(/bitbucket\.org[:/]([^/]+)\/([^/]+?)(?:\.git)?$/)
+  if (!m) return null
+  return { workspace: m[1], repo: m[2] }
+}
+
+async function bitbucketPR(opts: {
+  email: string; token: string; branch: string; title: string; body: string; workspace: string; repo: string
+}) {
+  const auth = btoa(`${opts.email}:${opts.token}`)
+  const res = await fetch(`https://api.bitbucket.org/2.0/repositories/${opts.workspace}/${opts.repo}/pullrequests`, {
+    method: "POST",
+    headers: { Authorization: `Basic ${auth}`, "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({
+      title: opts.title,
+      description: opts.body,
+      source: { branch: { name: opts.branch } },
+      destination: { branch: { name: "main" } },
+      close_source_branch: true,
+    }),
+  }).catch(() => null)
+  if (!res?.ok) return null
+  const data = (await res.json()) as { links: { html: { href: string } } }
+  return data.links.html.href
+}
+
 type IssueFields = {
   summary: string
   description: unknown
@@ -173,7 +199,7 @@ async function poll(dir: string) {
       } else {
         console.log(`[jira] ${issue.key}: ${diff.data!.length} file(s) changed — committing and opening PR`)
         const msg = `fix(${issue.key}): ${issue.fields.summary}`
-        const body = `Resolves: ${cfg.data.url}/browse/${issue.key}\n\nTriggered by @OpenFixer mention in Jira.`
+        const prBody = `Resolves: ${cfg.data.url}/browse/${issue.key}\n\nTriggered by @OpenFixer mention in Jira.`
         await run(space.data.directory, ["git", "add", "-A"])
         const committed = await run(space.data.directory, ["git", "commit", "-m", msg])
         if (!committed.ok) {
@@ -183,15 +209,23 @@ async function poll(dir: string) {
           if (!pushed.ok) {
             console.error(`[jira] ${issue.key}: push failed — ${pushed.out}`)
           } else {
-            const pr = await run(space.data.directory, ["gh", "pr", "create",
-              "--base", "main", "--head", space.data.branch,
-              "--title", msg, "--body", body,
-            ])
-            if (pr.ok) {
-              prUrl = pr.out
-              console.log(`[jira] ${issue.key}: PR created — ${prUrl}`)
+            const bbToken = (await client(dir).jira.bitbucketToken({ directory: dir })).data
+            if (!bbToken) {
+              console.warn(`[jira] ${issue.key}: no Bitbucket token — skipping PR creation`)
             } else {
-              console.error(`[jira] ${issue.key}: PR creation failed — ${pr.out}`)
+              const remote = (await run(space.data.directory, ["git", "remote", "get-url", "origin"])).out
+              const parsed = parseBitbucketRemote(remote)
+              if (!parsed) {
+                console.warn(`[jira] ${issue.key}: remote is not Bitbucket — skipping PR creation`)
+              } else {
+                prUrl = await bitbucketPR({
+                  email: cfg.data.email, token: bbToken,
+                  branch: space.data.branch, title: msg, body: prBody,
+                  workspace: parsed.workspace, repo: parsed.repo,
+                })
+                if (prUrl) console.log(`[jira] ${issue.key}: PR created — ${prUrl}`)
+                else console.error(`[jira] ${issue.key}: PR creation failed`)
+              }
             }
           }
         }
