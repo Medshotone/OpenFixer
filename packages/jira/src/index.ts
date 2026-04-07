@@ -130,7 +130,7 @@ async function poll(dir: string) {
       const result = await client(dir).session.prompt({
         sessionID: session.data.id,
         directory: dir,
-        parts: [{ type: "text", text: context(issue, text) }],
+        parts: [{ type: "text", text: context(issue, text, cfg.data.url, comment.id) }],
       })
       if (result.error) {
         console.error(`[jira] ${issue.key}: prompt failed — ${result.error}`)
@@ -253,10 +253,11 @@ function extract(node: unknown): string {
   return (n.content ?? []).map(extract).join(" ")
 }
 
-function context(issue: { key: string; fields: IssueFields }, comment: string): string {
+function context(issue: { key: string; fields: IssueFields }, comment: string, url: string, commentId: string): string {
   return `You are reviewing a Jira issue. Here is the full context:
 
 **Issue**: ${issue.key} - ${issue.fields.summary}
+**Link**: ${url}/browse/${issue.key}?focusedCommentId=${commentId}
 **Status**: ${issue.fields.status?.name ?? "Unknown"}
 **Assignee**: ${issue.fields.assignee?.displayName ?? "Unassigned"}
 
