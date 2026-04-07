@@ -13,6 +13,7 @@ const { server } = await createOpencode({ port: 0 })
 console.log("Opencode server ready at", server.url)
 
 const processed = new Set<string>()
+const checked = new Map<string, string>()
 
 function client(dir: string) {
   return createOpencodeClient({ baseUrl: server.url, directory: dir })
@@ -28,7 +29,8 @@ async function poll(dir: string) {
 
   const auth = btoa(`${cfg.data.email}:${token}`)
   const headers = { Authorization: `Basic ${auth}`, Accept: "application/json" }
-  const since = new Date(Date.now() - cfg.data.interval * 2000).toISOString().replace("T", " ").slice(0, 16)
+  const since = checked.get(dir) ?? new Date(Date.now() - cfg.data.interval * 2000).toISOString().replace("T", " ").slice(0, 16)
+  checked.set(dir, new Date().toISOString().replace("T", " ").slice(0, 16))
   const jql = encodeURIComponent(`project=${cfg.data.project_key} AND comment ~ "@opencode" AND updated >= "${since}"`)
 
   const res = await fetch(`${cfg.data.url}/rest/api/3/search?jql=${jql}&fields=summary,description,status,assignee`, { headers }).catch(() => null)
@@ -45,7 +47,7 @@ async function poll(dir: string) {
       const key = `${issue.key}:${comment.id}`
       if (processed.has(key)) continue
 
-      const text = extractText(comment.body)
+      const text = extract(comment.body)
       if (!text.includes("@opencode")) continue
 
       processed.add(key)
@@ -58,7 +60,7 @@ async function poll(dir: string) {
       const result = await c.session.prompt({
         sessionID: session.data.id,
         directory: dir,
-        parts: [{ type: "text", text: buildPrompt(issue, text) }],
+        parts: [{ type: "text", text: context(issue, text) }],
       })
       if (result.error) continue
 
@@ -80,7 +82,7 @@ async function poll(dir: string) {
   }
 }
 
-function extractText(body: unknown): string {
+function extract(body: unknown): string {
   if (!body || typeof body !== "object") return ""
   const b = body as { content?: { content?: { text?: string }[] }[] }
   return (b.content ?? [])
@@ -89,7 +91,7 @@ function extractText(body: unknown): string {
     .join(" ")
 }
 
-function buildPrompt(issue: { key: string; fields: { summary: string; description: unknown; status: { name: string } | null; assignee: { displayName: string } | null } }, comment: string): string {
+function context(issue: { key: string; fields: { summary: string; description: unknown; status: { name: string } | null; assignee: { displayName: string } | null } }, comment: string): string {
   return `You are reviewing a Jira issue. Here is the full context:
 
 **Issue**: ${issue.key} - ${issue.fields.summary}
@@ -97,7 +99,7 @@ function buildPrompt(issue: { key: string; fields: { summary: string; descriptio
 **Assignee**: ${issue.fields.assignee?.displayName ?? "Unassigned"}
 
 **Description**:
-${extractText(issue.fields.description) || "(no description)"}
+${extract(issue.fields.description) || "(no description)"}
 
 **Request from @opencode mention**:
 ${comment.replace(/@opencode/gi, "").trim()}`
