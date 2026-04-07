@@ -39,8 +39,7 @@ async function poll(dir: string) {
   const cfg = await client(dir).jira.get({ directory: dir })
   if (cfg.error || !cfg.data || !cfg.data.enabled) return
 
-  // token is stripped from GET response for security; use env var
-  const token = process.env.JIRA_TOKEN
+  const token = (await client(dir).jira.token({ directory: dir })).data
   if (!token) return
 
   const auth = btoa(`${cfg.data.email}:${token}`)

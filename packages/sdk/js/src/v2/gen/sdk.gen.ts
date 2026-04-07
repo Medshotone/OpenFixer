@@ -55,6 +55,7 @@ import type {
   JiraRemoveResponses,
   JiraTestErrors,
   JiraTestResponses,
+  JiraTokenResponses,
   JiraUpsertErrors,
   JiraUpsertResponses,
   LspStatusResponses,
@@ -3164,6 +3165,36 @@ export class Jira2 extends HeyApiClient {
         ...options?.headers,
         ...params.headers,
       },
+    })
+  }
+
+  /**
+   * Get Jira token
+   *
+   * Get the raw API token for the current project. For server-side use only — never expose to browsers.
+   */
+  public token<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<JiraTokenResponses, unknown, ThrowOnError>({
+      url: "/jira/token",
+      ...options,
+      ...params,
     })
   }
 

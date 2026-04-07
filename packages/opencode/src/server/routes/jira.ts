@@ -65,6 +65,24 @@ export const JiraRoutes = lazy(() =>
         return c.json(true)
       },
     )
+    .get(
+      "/token",
+      describeRoute({
+        summary: "Get Jira token",
+        description: "Get the raw API token for the current project. For server-side use only — never expose to browsers.",
+        operationId: "jira.token",
+        responses: {
+          200: {
+            description: "Token or null",
+            content: { "application/json": { schema: resolver(z.string().nullable()) } },
+          },
+        },
+      }),
+      (c) => {
+        const cfg = Jira.get(Instance.project.id)
+        return c.json(cfg?.token ?? null)
+      },
+    )
     .post(
       "/test",
       describeRoute({

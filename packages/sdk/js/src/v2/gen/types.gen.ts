@@ -4565,6 +4565,25 @@ export type JiraUpsertResponses = {
 
 export type JiraUpsertResponse = JiraUpsertResponses[keyof JiraUpsertResponses]
 
+export type JiraTokenData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/jira/token"
+}
+
+export type JiraTokenResponses = {
+  /**
+   * Token or null
+   */
+  200: string | null
+}
+
+export type JiraTokenResponse = JiraTokenResponses[keyof JiraTokenResponses]
+
 export type JiraTestData = {
   body?: {
     url: string
