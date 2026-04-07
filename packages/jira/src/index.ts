@@ -70,7 +70,11 @@ async function poll(dir: string) {
 
   console.log(`[jira] ${cfg.data.project_key}: polling since ${since}`)
 
-  const res = await fetch(`${cfg.data.url}/rest/api/3/search?jql=${encodeURIComponent(jql)}&fields=summary,description,status,assignee`, { headers }).catch(() => null)
+  const res = await fetch(`${cfg.data.url}/rest/api/3/search/jql`, {
+    method: "POST",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify({ jql, fields: ["summary", "description", "status", "assignee"] }),
+  }).catch(() => null)
   if (!res) {
     console.error(`[jira] ${cfg.data.project_key}: network error reaching Jira`)
     return
