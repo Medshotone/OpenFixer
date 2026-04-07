@@ -14,9 +14,18 @@ console.log("Opencode server ready at", server.url)
 
 const processed = new Set<string>()
 const checked = new Map<string, string>()
+const clients = new Map<string, ReturnType<typeof createOpencodeClient>>()
 
 function client(dir: string) {
-  return createOpencodeClient({ baseUrl: server.url, directory: dir })
+  if (!clients.has(dir)) clients.set(dir, createOpencodeClient({ baseUrl: server.url, directory: dir }))
+  return clients.get(dir)!
+}
+
+type IssueFields = {
+  summary: string
+  description: unknown
+  status: { name: string } | null
+  assignee: { displayName: string } | null
 }
 
 async function poll(dir: string) {
@@ -29,19 +38,21 @@ async function poll(dir: string) {
 
   const auth = btoa(`${cfg.data.email}:${token}`)
   const headers = { Authorization: `Basic ${auth}`, Accept: "application/json" }
-  const since = checked.get(dir) ?? new Date(Date.now() - cfg.data.interval * 2000).toISOString().replace("T", " ").slice(0, 16)
-  checked.set(dir, new Date().toISOString().replace("T", " ").slice(0, 16))
+  const since = checked.get(dir) ?? new Date(Date.now() - cfg.data.interval * 2 * 1000).toISOString().replace("T", " ").slice(0, 16)
   const jql = encodeURIComponent(`project=${cfg.data.project_key} AND comment ~ "@opencode" AND updated >= "${since}"`)
 
   const res = await fetch(`${cfg.data.url}/rest/api/3/search?jql=${jql}&fields=summary,description,status,assignee`, { headers }).catch(() => null)
   if (!res?.ok) return
 
-  const { issues } = (await res.json()) as { issues: { key: string; fields: { summary: string; description: unknown; status: { name: string } | null; assignee: { displayName: string } | null } }[] }
+  // update only after successful fetch to avoid missing issues on transient failures
+  checked.set(dir, new Date().toISOString().replace("T", " ").slice(0, 16))
+
+  const { issues } = (await res.json()) as { issues: { key: string; fields: IssueFields }[] }
 
   for (const issue of issues) {
-    const commRes = await fetch(`${cfg.data.url}/rest/api/3/issue/${issue.key}/comment?orderBy=-created&maxResults=50`, { headers }).catch(() => null)
-    if (!commRes?.ok) continue
-    const { comments } = (await commRes.json()) as { comments: { id: string; body: unknown }[] }
+    const cres = await fetch(`${cfg.data.url}/rest/api/3/issue/${issue.key}/comment?orderBy=-created&maxResults=50`, { headers }).catch(() => null)
+    if (!cres?.ok) continue
+    const { comments } = (await cres.json()) as { comments: { id: string; body: unknown }[] }
 
     for (const comment of comments) {
       const key = `${issue.key}:${comment.id}`
@@ -53,11 +64,10 @@ async function poll(dir: string) {
       processed.add(key)
       console.log(`[jira] Processing @opencode in ${issue.key} comment ${comment.id}`)
 
-      const c = client(dir)
-      const session = await c.session.create({ title: `Jira: ${issue.key} - ${issue.fields.summary}`, directory: dir })
+      const session = await client(dir).session.create({ title: `Jira: ${issue.key} - ${issue.fields.summary}`, directory: dir })
       if (session.error) continue
 
-      const result = await c.session.prompt({
+      const result = await client(dir).session.prompt({
         sessionID: session.data.id,
         directory: dir,
         parts: [{ type: "text", text: context(issue, text) }],
@@ -82,16 +92,14 @@ async function poll(dir: string) {
   }
 }
 
-function extract(body: unknown): string {
-  if (!body || typeof body !== "object") return ""
-  const b = body as { content?: { content?: { text?: string }[] }[] }
-  return (b.content ?? [])
-    .flatMap((block) => block.content ?? [])
-    .map((node) => node.text ?? "")
-    .join(" ")
+function extract(node: unknown): string {
+  if (!node || typeof node !== "object") return ""
+  const n = node as { text?: string; content?: unknown[] }
+  if (n.text) return n.text
+  return (n.content ?? []).map(extract).join(" ")
 }
 
-function context(issue: { key: string; fields: { summary: string; description: unknown; status: { name: string } | null; assignee: { displayName: string } | null } }, comment: string): string {
+function context(issue: { key: string; fields: IssueFields }, comment: string): string {
   return `You are reviewing a Jira issue. Here is the full context:
 
 **Issue**: ${issue.key} - ${issue.fields.summary}
