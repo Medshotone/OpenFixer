@@ -97,7 +97,7 @@ async function poll(dir: string) {
       console.error(`[jira] ${issue.key}: failed to fetch comments (${cres?.status ?? "network error"})`)
       continue
     }
-    const { comments } = (await cres.json()) as { comments: { id: string; body: unknown }[] }
+    const { comments } = (await cres.json()) as { comments: { id: string; body: unknown; author: { accountId: string; displayName: string } }[] }
     console.log(`[jira] ${issue.key}: ${comments.length} comment(s) to scan`)
 
     for (const comment of comments) {
@@ -141,7 +141,15 @@ async function poll(dir: string) {
         method: "POST",
         headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({
-          body: { type: "doc", version: 1, content: [{ type: "paragraph", content: [{ type: "text", text: reply }] }] },
+          body: {
+            type: "doc", version: 1, content: [{
+              type: "paragraph", content: [
+                { type: "mention", attrs: { id: comment.author.accountId, text: `@${comment.author.displayName}` } },
+                { type: "text", text: " " },
+                { type: "text", text: reply },
+              ],
+            }],
+          },
         }),
       }).catch(() => null)
       if (posted?.ok) console.log(`[jira] ${issue.key} #${comment.id}: replied successfully`)
