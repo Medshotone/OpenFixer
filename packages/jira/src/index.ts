@@ -199,7 +199,13 @@ async function poll(dir: string) {
         .map((p) => p.text)
         .join("\n")
 
-      const diff = await client(dir).vcs.diff({ directory: dir, workspace: space.data.id, mode: "git" })
+      const diff = await wc.vcs.diff({ mode: "branch" })
+      console.log(`[jira] ${issue.key}: vcs.diff — error=${diff.error ?? "none"}, files=${JSON.stringify(diff.data?.map(f => f.file) ?? null)}`)
+
+      // cross-check with git status directly in worktree
+      const status = await run(space.data.directory, ["git", "status", "--short"])
+      console.log(`[jira] ${issue.key}: git status — "${status.out || "(clean)"}" (ok=${status.ok})`)
+
       const changed = (diff.data?.length ?? 0) > 0
 
       let prUrl: string | null = null
