@@ -142,13 +142,10 @@ async function poll(dir: string) {
         headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({
           body: {
-            type: "doc", version: 1, content: [{
-              type: "paragraph", content: [
-                { type: "mention", attrs: { id: comment.author.accountId, text: `@${comment.author.displayName}` } },
-                { type: "text", text: " " },
-                { type: "text", text: reply },
-              ],
-            }],
+            type: "doc", version: 1, content: [
+              { type: "paragraph", content: [{ type: "mention", attrs: { id: comment.author.accountId, text: `@${comment.author.displayName}` } }] },
+              ...mdToAdf(reply),
+            ],
           },
         }),
       }).catch(() => null)
@@ -156,6 +153,78 @@ async function poll(dir: string) {
       else console.error(`[jira] ${issue.key}: failed to post reply (${posted?.status ?? "network error"})`)
     }
   }
+}
+
+type AdfMark = { type: string; attrs?: Record<string, unknown> }
+type AdfNode = { type: string; attrs?: Record<string, unknown>; content?: AdfNode[]; text?: string; marks?: AdfMark[] }
+
+function inline(src: string): AdfNode[] {
+  const nodes: AdfNode[] = []
+  const re = /\*\*(.+?)\*\*|__(.+?)__|`(.+?)`|\*(.+?)\*|_(.+?)_/g
+  let pos = 0
+  for (const m of src.matchAll(re)) {
+    if (m.index! > pos) nodes.push({ type: "text", text: src.slice(pos, m.index) })
+    if (m[1] ?? m[2]) nodes.push({ type: "text", text: (m[1] ?? m[2])!, marks: [{ type: "strong" }] })
+    else if (m[3]) nodes.push({ type: "text", text: m[3], marks: [{ type: "code" }] })
+    else nodes.push({ type: "text", text: (m[4] ?? m[5])!, marks: [{ type: "em" }] })
+    pos = m.index! + m[0].length
+  }
+  if (pos < src.length) nodes.push({ type: "text", text: src.slice(pos) })
+  return nodes
+}
+
+function mdToAdf(md: string): AdfNode[] {
+  const blocks: AdfNode[] = []
+  const lines = md.split("\n")
+  let i = 0
+  while (i < lines.length) {
+    const line = lines[i]
+    if (!line.trim()) { i++; continue }
+
+    // fenced code block
+    if (line.startsWith("```")) {
+      const lang = line.slice(3).trim() || undefined
+      const code: string[] = []
+      i++
+      while (i < lines.length && !lines[i].startsWith("```")) code.push(lines[i++])
+      i++
+      blocks.push({ type: "codeBlock", attrs: lang ? { language: lang } : {}, content: [{ type: "text", text: code.join("\n") }] })
+      continue
+    }
+
+    // heading
+    const hm = line.match(/^(#{1,6})\s+(.+)/)
+    if (hm) { blocks.push({ type: "heading", attrs: { level: hm[1].length }, content: inline(hm[2]) }); i++; continue }
+
+    // bullet list
+    if (/^[-*+]\s/.test(line)) {
+      const items: AdfNode[] = []
+      while (i < lines.length && /^[-*+]\s/.test(lines[i]))
+        items.push({ type: "listItem", content: [{ type: "paragraph", content: inline(lines[i++].replace(/^[-*+]\s+/, "")) }] })
+      blocks.push({ type: "bulletList", content: items })
+      continue
+    }
+
+    // ordered list
+    if (/^\d+[.)]\s/.test(line)) {
+      const items: AdfNode[] = []
+      while (i < lines.length && /^\d+[.)]\s/.test(lines[i]))
+        items.push({ type: "listItem", content: [{ type: "paragraph", content: inline(lines[i++].replace(/^\d+[.)]\s+/, "")) }] })
+      blocks.push({ type: "orderedList", content: items })
+      continue
+    }
+
+    // paragraph — collect until blank or block-level line
+    const para: string[] = []
+    while (i < lines.length && lines[i].trim() && !/^#{1,6}\s/.test(lines[i]) && !/^[-*+]\s/.test(lines[i]) && !/^\d+[.)]\s/.test(lines[i]) && !lines[i].startsWith("```"))
+      para.push(lines[i++])
+    if (para.length) {
+      const content: AdfNode[] = []
+      para.forEach((l, idx) => { if (idx > 0) content.push({ type: "hardBreak" }); content.push(...inline(l)) })
+      blocks.push({ type: "paragraph", content })
+    }
+  }
+  return blocks.length ? blocks : [{ type: "paragraph", content: [{ type: "text", text: md }] }]
 }
 
 function extract(node: unknown): string {
