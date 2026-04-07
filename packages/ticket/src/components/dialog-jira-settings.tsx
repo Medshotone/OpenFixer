@@ -73,7 +73,7 @@ export function DialogJiraSettings(props: { project: LocalProject }) {
 
   return (
     <Dialog title={language.t("dialog.jira.title")} class="w-full max-w-[480px] mx-auto">
-      <form onSubmit={submit} class="flex flex-col gap-6 p-6 pt-0">
+      <form onSubmit={submit} class="flex flex-col gap-6 p-6 pt-0 overflow-y-auto">
         <div class="flex flex-col gap-4">
           <TextField
             autofocus
