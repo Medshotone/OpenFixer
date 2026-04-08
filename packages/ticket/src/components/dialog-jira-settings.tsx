@@ -23,6 +23,7 @@ export function DialogJiraSettings(props: { project: LocalProject }) {
     interval: 30,
     enabled: true,
     bitbucket_token: "",
+    bitbucket_user: "",
     showToken: false,
     showBBToken: false,
     result: null as boolean | null,
@@ -41,6 +42,7 @@ export function DialogJiraSettings(props: { project: LocalProject }) {
       setStore("project_key", cfg.data.project_key ?? "")
       setStore("interval", cfg.data.interval ?? 30)
       setStore("enabled", cfg.data.enabled ?? true)
+      setStore("bitbucket_user", cfg.data.bitbucket_user ?? "")
     }
     if (tok.data) setStore("token", tok.data)
     if (bbtok.data) setStore("bitbucket_token", bbtok.data)
@@ -57,6 +59,7 @@ export function DialogJiraSettings(props: { project: LocalProject }) {
         interval: store.interval,
         enabled: store.enabled,
         bitbucket_token: store.bitbucket_token.trim() || null,
+        bitbucket_user: store.bitbucket_user.trim() || null,
       })
       dialog.close()
     },
@@ -141,6 +144,12 @@ export function DialogJiraSettings(props: { project: LocalProject }) {
               />
             </div>
           </div>
+          <TextField
+            label={language.t("dialog.jira.bitbucketUser")}
+            placeholder={language.t("dialog.jira.bitbucketUser.placeholder")}
+            value={store.bitbucket_user}
+            onChange={(v) => setStore("bitbucket_user", v)}
+          />
           <TextField
             label={language.t("dialog.jira.projectKey")}
             placeholder={language.t("dialog.jira.projectKey.placeholder")}

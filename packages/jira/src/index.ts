@@ -165,7 +165,6 @@ async function poll(dir: string) {
       const checkout = await run(space.data.directory, ["git", "reset", "--hard"])
       if (!checkout.ok) {
         console.error(`[jira] ${issue.key}: workspace checkout failed — ${checkout.out}`)
-        await client(dir).experimental.workspace.remove({ id: space.data.id, directory: dir })
         continue
       }
       console.log(`[jira] ${issue.key}: workspace ready, creating session...`)
@@ -183,7 +182,6 @@ async function poll(dir: string) {
       })
       if (session.error) {
         console.error(`[jira] ${issue.key}: failed to create session — ${session.error}`)
-        await client(dir).experimental.workspace.remove({ id: space.data.id, directory: dir })
         continue
       }
       console.log(`[jira] ${issue.key}: session created (${session.data.id}), sending prompt...`)
@@ -194,7 +192,6 @@ async function poll(dir: string) {
       })
       if (result.error) {
         console.error(`[jira] ${issue.key}: prompt failed — ${result.error}`)
-        await client(dir).experimental.workspace.remove({ id: space.data.id, directory: dir })
         continue
       }
 
@@ -210,7 +207,6 @@ async function poll(dir: string) {
       let prUrl: string | null = null
       if (!changed) {
         console.log(`[jira] ${issue.key}: no file changes, removing workspace`)
-        await client(dir).experimental.workspace.remove({ id: space.data.id, directory: dir })
       } else {
         console.log(`[jira] ${issue.key}: changes detected — committing and opening PR`)
         const msg = `fix(${issue.key}): ${issue.fields.summary}`
@@ -219,21 +215,21 @@ async function poll(dir: string) {
         const committed = await run(space.data.directory, ["git", "commit", "-m", msg])
         if (!committed.ok) {
           console.error(`[jira] ${issue.key}: commit failed — ${committed.out}`)
-          await client(dir).experimental.workspace.remove({ id: space.data.id, directory: dir })
         } else {
           const bbToken = (await client(dir).jira.bitbucketToken({ directory: dir })).data as string | null
           const remote = (await run(space.data.directory, ["git", "remote", "get-url", "origin"])).out
           const parsed = parseBitbucketRemote(remote)
           // Push via HTTPS with token to avoid SSH passphrase prompts in non-interactive context
+          const bbUser = cfg.data.bitbucket_user || cfg.data.email
           const pushUrl = bbToken && parsed
-            ? `https://${encodeURIComponent(cfg.data.email)}:${encodeURIComponent(bbToken)}@bitbucket.org/${parsed.workspace}/${parsed.repo}.git`
+            ? `https://${encodeURIComponent(bbUser)}:${encodeURIComponent(bbToken)}@bitbucket.org/${parsed.workspace}/${parsed.repo}.git`
             : null
+
           const pushed = pushUrl
-            ? await run(space.data.directory, ["git", "push", pushUrl, space.data.branch])
+            ? await run(space.data.directory, ["git", "-c", "credential.helper=", "push", pushUrl, space.data.branch])
             : await run(space.data.directory, ["git", "-c", "core.sshCommand=ssh -o BatchMode=yes", "push", "origin", space.data.branch])
           if (!pushed.ok) {
             console.error(`[jira] ${issue.key}: push failed — ${pushed.out}`)
-            await client(dir).experimental.workspace.remove({ id: space.data.id, directory: dir })
           } else if (!bbToken) {
             console.warn(`[jira] ${issue.key}: no Bitbucket token — skipping PR creation`)
           } else if (!parsed) {
@@ -400,5 +396,5 @@ for (const dir of dirs) {
   poll(dir)
   setInterval(() => poll(dir), cfg.data.interval * 1000)
 }
-
+//TODO check if push pr work correct
 console.log("[jira] Poller running. Ctrl+C to stop.")

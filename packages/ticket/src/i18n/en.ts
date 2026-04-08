@@ -367,6 +367,8 @@ export const dict = {
   "dialog.jira.token.placeholder": "Your Atlassian API token",
   "dialog.jira.bitbucketToken": "Bitbucket App Password",
   "dialog.jira.bitbucketToken.placeholder": "Optional — required for opening PRs on Bitbucket",
+  "dialog.jira.bitbucketUser": "Bitbucket Username",
+  "dialog.jira.bitbucketUser.placeholder": "Optional — your Bitbucket username for pushing code",
   "dialog.jira.projectKey": "Project Key",
   "dialog.jira.projectKey.placeholder": "e.g. AILA",
   "dialog.jira.interval": "Polling Interval (seconds)",

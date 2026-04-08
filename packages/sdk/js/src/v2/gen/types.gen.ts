@@ -4531,6 +4531,7 @@ export type JiraGetResponses = {
     interval: number
     enabled: boolean
     bitbucket_token: string | null
+    bitbucket_user: string | null
   } | null
 }
 
@@ -4545,6 +4546,7 @@ export type JiraUpsertData = {
     interval?: number
     enabled?: boolean
     bitbucket_token?: string | null
+    bitbucket_user?: string | null
   }
   path?: never
   query?: {
@@ -4575,6 +4577,7 @@ export type JiraUpsertResponses = {
     interval: number
     enabled: boolean
     bitbucket_token: string | null
+    bitbucket_user: string | null
   }
 }
 

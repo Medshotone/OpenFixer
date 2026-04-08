@@ -3142,6 +3142,7 @@ export class Jira2 extends HeyApiClient {
       interval?: number
       enabled?: boolean
       bitbucket_token?: string | null
+      bitbucket_user?: string | null
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -3159,6 +3160,7 @@ export class Jira2 extends HeyApiClient {
             { in: "body", key: "interval" },
             { in: "body", key: "enabled" },
             { in: "body", key: "bitbucket_token" },
+            { in: "body", key: "bitbucket_user" },
           ],
         },
       ],
