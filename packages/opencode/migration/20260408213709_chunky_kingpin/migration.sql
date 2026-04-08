@@ -1,0 +1,1 @@
+ALTER TABLE `jira_config` ADD `bitbucket_user` text;
