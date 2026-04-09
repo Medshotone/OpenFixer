@@ -176,7 +176,8 @@ async function poll(dir: string) {
     console.log(`[jira] ${issue.key}: ${comments.length} comment(s) to scan`)
 
     for (const comment of comments) {
-      if (comment.created < start) continue
+      console.log(`[jira] comment.created: ${new Date(comment.created)} | start: ${new Date(start)}`)
+      if (new Date(comment.created) < new Date(start)) continue
       const key = `${issue.key}:${comment.id}`
       if (processed.has(key)) continue
 
