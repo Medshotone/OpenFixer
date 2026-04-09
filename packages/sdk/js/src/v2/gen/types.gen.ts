@@ -2823,6 +2823,28 @@ export type ExperimentalWorkspaceRemoveResponses = {
 export type ExperimentalWorkspaceRemoveResponse =
   ExperimentalWorkspaceRemoveResponses[keyof ExperimentalWorkspaceRemoveResponses]
 
+export type ExperimentalWorkspaceGetData = {
+  body?: never
+  path: {
+    id: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/experimental/workspace/{id}"
+}
+
+export type ExperimentalWorkspaceGetResponses = {
+  /**
+   * Workspace or null
+   */
+  200: Workspace | null
+}
+
+export type ExperimentalWorkspaceGetResponse =
+  ExperimentalWorkspaceGetResponses[keyof ExperimentalWorkspaceGetResponses]
+
 export type WorktreeRemoveData = {
   body?: WorktreeRemoveInput
   path?: never
