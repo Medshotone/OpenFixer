@@ -11,6 +11,7 @@ import { Installation } from "@/installation"
 import { Log } from "../../util/log"
 import { lazy } from "../../util/lazy"
 import { Config } from "../../config/config"
+import { Jira } from "../../jira/index"
 import { errors } from "../error"
 
 const log = Log.create({ service: "server" })
@@ -308,5 +309,20 @@ export const GlobalRoutes = lazy(() =>
         }
         return c.json(result, 500)
       },
+    )
+    .get(
+      "/jira/dirs",
+      describeRoute({
+        summary: "List Jira-enabled project directories",
+        description: "Return the worktree paths of all projects with Jira integration enabled.",
+        operationId: "global.jira.dirs",
+        responses: {
+          200: {
+            description: "List of project directories",
+            content: { "application/json": { schema: resolver(z.string().array()) } },
+          },
+        },
+      }),
+      (c) => c.json(Jira.listDirs()),
     ),
 )

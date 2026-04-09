@@ -54,17 +54,20 @@ export const SessionRoutes = lazy(() =>
             .meta({ description: "Filter sessions updated on or after this timestamp (milliseconds since epoch)" }),
           search: z.string().optional().meta({ description: "Filter sessions by title (case-insensitive)" }),
           limit: z.coerce.number().optional().meta({ description: "Maximum number of sessions to return" }),
+          metadata: z.string().optional().meta({ description: "JSON object of metadata key/value pairs to filter by" }),
         }),
       ),
       async (c) => {
         const query = c.req.valid("query")
+        const meta = query.metadata ? JSON.parse(query.metadata) as Record<string, string> : undefined
         const sessions: Session.Info[] = []
         for await (const session of Session.list({
-          directory: query.directory,
+          directory: meta ? undefined : query.directory,
           roots: query.roots,
           start: query.start,
           search: query.search,
           limit: query.limit,
+          metadata: meta,
         })) {
           sessions.push(session)
         }

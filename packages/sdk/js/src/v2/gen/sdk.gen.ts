@@ -28,6 +28,7 @@ import type {
   ExperimentalSessionListResponses,
   ExperimentalWorkspaceCreateErrors,
   ExperimentalWorkspaceCreateResponses,
+  ExperimentalWorkspaceGetResponses,
   ExperimentalWorkspaceListResponses,
   ExperimentalWorkspaceRemoveErrors,
   ExperimentalWorkspaceRemoveResponses,
@@ -46,10 +47,19 @@ import type {
   GlobalDisposeResponses,
   GlobalEventResponses,
   GlobalHealthResponses,
+  GlobalJiraDirsResponses,
   GlobalSyncEventSubscribeResponses,
   GlobalUpgradeErrors,
   GlobalUpgradeResponses,
   InstanceDisposeResponses,
+  JiraBitbucketTokenResponses,
+  JiraGetResponses,
+  JiraRemoveResponses,
+  JiraTestErrors,
+  JiraTestResponses,
+  JiraTokenResponses,
+  JiraUpsertErrors,
+  JiraUpsertResponses,
   LspStatusResponses,
   McpAddErrors,
   McpAddResponses,
@@ -284,6 +294,20 @@ export class Config extends HeyApiClient {
   }
 }
 
+export class Jira extends HeyApiClient {
+  /**
+   * List Jira-enabled project directories
+   *
+   * Return the worktree paths of all projects with Jira integration enabled.
+   */
+  public dirs<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
+    return (options?.client ?? this.client).get<GlobalJiraDirsResponses, unknown, ThrowOnError>({
+      url: "/global/jira/dirs",
+      ...options,
+    })
+  }
+}
+
 export class Global extends HeyApiClient {
   /**
    * Get health
@@ -353,6 +377,11 @@ export class Global extends HeyApiClient {
   private _config?: Config
   get config(): Config {
     return (this._config ??= new Config({ client: this.client }))
+  }
+
+  private _jira?: Jira
+  get jira(): Jira {
+    return (this._jira ??= new Jira({ client: this.client }))
   }
 }
 
@@ -1160,6 +1189,38 @@ export class Workspace extends HeyApiClient {
       ...params,
     })
   }
+
+  /**
+   * Get workspace
+   *
+   * Get a workspace by ID.
+   */
+  public get<ThrowOnError extends boolean = false>(
+    parameters: {
+      id: string
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "id" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<ExperimentalWorkspaceGetResponses, unknown, ThrowOnError>({
+      url: "/experimental/workspace/{id}",
+      ...options,
+      ...params,
+    })
+  }
 }
 
 export class Session extends HeyApiClient {
@@ -1412,6 +1473,7 @@ export class Session2 extends HeyApiClient {
       start?: number
       search?: string
       limit?: number
+      metadata?: string
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -1426,6 +1488,7 @@ export class Session2 extends HeyApiClient {
             { in: "query", key: "start" },
             { in: "query", key: "search" },
             { in: "query", key: "limit" },
+            { in: "query", key: "metadata" },
           ],
         },
       ],
@@ -1450,6 +1513,9 @@ export class Session2 extends HeyApiClient {
       title?: string
       permission?: PermissionRuleset
       workspaceID?: string
+      metadata?: {
+        [key: string]: unknown
+      }
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -1464,6 +1530,7 @@ export class Session2 extends HeyApiClient {
             { in: "body", key: "title" },
             { in: "body", key: "permission" },
             { in: "body", key: "workspaceID" },
+            { in: "body", key: "metadata" },
           ],
         },
       ],
@@ -3033,6 +3100,224 @@ export class Event extends HeyApiClient {
   }
 }
 
+export class Jira2 extends HeyApiClient {
+  /**
+   * Delete Jira config
+   *
+   * Remove the Jira integration config for the current project.
+   */
+  public remove<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).delete<JiraRemoveResponses, unknown, ThrowOnError>({
+      url: "/jira",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Get Jira config
+   *
+   * Get the Jira integration config for the current project.
+   */
+  public get<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<JiraGetResponses, unknown, ThrowOnError>({
+      url: "/jira",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Upsert Jira config
+   *
+   * Create or update the Jira integration config for the current project.
+   */
+  public upsert<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+      url?: string
+      email?: string
+      token?: string
+      project_key?: string
+      interval?: number
+      enabled?: boolean
+      bitbucket_token?: string | null
+      bitbucket_user?: string | null
+      branch?: string | null
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "url" },
+            { in: "body", key: "email" },
+            { in: "body", key: "token" },
+            { in: "body", key: "project_key" },
+            { in: "body", key: "interval" },
+            { in: "body", key: "enabled" },
+            { in: "body", key: "bitbucket_token" },
+            { in: "body", key: "bitbucket_user" },
+            { in: "body", key: "branch" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).put<JiraUpsertResponses, JiraUpsertErrors, ThrowOnError>({
+      url: "/jira",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Get Jira token
+   *
+   * Get the raw API token for the current project. For server-side use only — never expose to browsers.
+   */
+  public token<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<JiraTokenResponses, unknown, ThrowOnError>({
+      url: "/jira/token",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Get Bitbucket token
+   *
+   * Get the raw Bitbucket app password for the current project. For server-side use only.
+   */
+  public bitbucketToken<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<JiraBitbucketTokenResponses, unknown, ThrowOnError>({
+      url: "/jira/bitbucket-token",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Test Jira connection
+   *
+   * Verify that the provided Jira credentials can access the specified project.
+   */
+  public test<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+      url?: string
+      email?: string
+      token?: string
+      project_key?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "url" },
+            { in: "body", key: "email" },
+            { in: "body", key: "token" },
+            { in: "body", key: "project_key" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<JiraTestResponses, JiraTestErrors, ThrowOnError>({
+      url: "/jira/test",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+}
+
 export class Auth2 extends HeyApiClient {
   /**
    * Remove MCP OAuth
@@ -4070,6 +4355,11 @@ export class OpencodeClient extends HeyApiClient {
   private _event?: Event
   get event(): Event {
     return (this._event ??= new Event({ client: this.client }))
+  }
+
+  private _jira?: Jira2
+  get jira(): Jira2 {
+    return (this._jira ??= new Jira2({ client: this.client }))
   }
 
   private _mcp?: Mcp

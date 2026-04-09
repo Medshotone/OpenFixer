@@ -23,7 +23,8 @@
       "packages/*",
       "packages/console/*",
       "packages/sdk/js",
-      "packages/slack"
+      "packages/slack",
+      "packages/jira"
     ],
     "catalog": {
       "@effect/platform-node": "4.0.0-beta.43",

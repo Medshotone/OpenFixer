@@ -931,6 +931,9 @@ export type Session = {
     archived?: number
   }
   permission?: PermissionRuleset
+  metadata?: {
+    [key: string]: unknown
+  }
   revert?: {
     messageID: string
     partID?: string
@@ -1092,6 +1095,9 @@ export type SyncEventSessionUpdated = {
         archived: number | null
       }
       permission: PermissionRuleset | null
+      metadata: {
+        [key: string]: unknown
+      } | null
       revert: {
         messageID: string
         partID?: string
@@ -1814,6 +1820,9 @@ export type GlobalSession = {
     archived?: number
   }
   permission?: PermissionRuleset
+  metadata?: {
+    [key: string]: unknown
+  }
   revert?: {
     messageID: string
     partID?: string
@@ -2195,6 +2204,22 @@ export type GlobalUpgradeResponses = {
 }
 
 export type GlobalUpgradeResponse = GlobalUpgradeResponses[keyof GlobalUpgradeResponses]
+
+export type GlobalJiraDirsData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/global/jira/dirs"
+}
+
+export type GlobalJiraDirsResponses = {
+  /**
+   * List of project directories
+   */
+  200: Array<string>
+}
+
+export type GlobalJiraDirsResponse = GlobalJiraDirsResponses[keyof GlobalJiraDirsResponses]
 
 export type AuthRemoveData = {
   body?: never
@@ -2798,6 +2823,28 @@ export type ExperimentalWorkspaceRemoveResponses = {
 export type ExperimentalWorkspaceRemoveResponse =
   ExperimentalWorkspaceRemoveResponses[keyof ExperimentalWorkspaceRemoveResponses]
 
+export type ExperimentalWorkspaceGetData = {
+  body?: never
+  path: {
+    id: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/experimental/workspace/{id}"
+}
+
+export type ExperimentalWorkspaceGetResponses = {
+  /**
+   * Workspace or null
+   */
+  200: Workspace | null
+}
+
+export type ExperimentalWorkspaceGetResponse =
+  ExperimentalWorkspaceGetResponses[keyof ExperimentalWorkspaceGetResponses]
+
 export type WorktreeRemoveData = {
   body?: WorktreeRemoveInput
   path?: never
@@ -2994,6 +3041,10 @@ export type SessionListData = {
      * Maximum number of sessions to return
      */
     limit?: number
+    /**
+     * JSON object of metadata key/value pairs to filter by
+     */
+    metadata?: string
   }
   url: "/session"
 }
@@ -3013,6 +3064,9 @@ export type SessionCreateData = {
     title?: string
     permission?: PermissionRuleset
     workspaceID?: string
+    metadata?: {
+      [key: string]: unknown
+    }
   }
   path?: never
   query?: {
@@ -4461,6 +4515,175 @@ export type EventSubscribeResponses = {
 }
 
 export type EventSubscribeResponse = EventSubscribeResponses[keyof EventSubscribeResponses]
+
+export type JiraRemoveData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/jira"
+}
+
+export type JiraRemoveResponses = {
+  /**
+   * Deleted
+   */
+  200: boolean
+}
+
+export type JiraRemoveResponse = JiraRemoveResponses[keyof JiraRemoveResponses]
+
+export type JiraGetData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/jira"
+}
+
+export type JiraGetResponses = {
+  /**
+   * Jira config or null
+   */
+  200: {
+    project_id: string
+    url: string
+    email: string
+    project_key: string
+    interval: number
+    enabled: boolean
+    bitbucket_token: string | null
+    bitbucket_user: string | null
+    branch: string | null
+  } | null
+}
+
+export type JiraGetResponse = JiraGetResponses[keyof JiraGetResponses]
+
+export type JiraUpsertData = {
+  body?: {
+    url: string
+    email: string
+    token: string
+    project_key: string
+    interval?: number
+    enabled?: boolean
+    bitbucket_token?: string | null
+    bitbucket_user?: string | null
+    branch?: string | null
+  }
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/jira"
+}
+
+export type JiraUpsertErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type JiraUpsertError = JiraUpsertErrors[keyof JiraUpsertErrors]
+
+export type JiraUpsertResponses = {
+  /**
+   * Updated Jira config
+   */
+  200: {
+    project_id: string
+    url: string
+    email: string
+    project_key: string
+    interval: number
+    enabled: boolean
+    bitbucket_token: string | null
+    bitbucket_user: string | null
+    branch: string | null
+  }
+}
+
+export type JiraUpsertResponse = JiraUpsertResponses[keyof JiraUpsertResponses]
+
+export type JiraTokenData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/jira/token"
+}
+
+export type JiraTokenResponses = {
+  /**
+   * Token or null
+   */
+  200: string | null
+}
+
+export type JiraTokenResponse = JiraTokenResponses[keyof JiraTokenResponses]
+
+export type JiraBitbucketTokenData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/jira/bitbucket-token"
+}
+
+export type JiraBitbucketTokenResponses = {
+  /**
+   * Bitbucket app password or null
+   */
+  200: string | null
+}
+
+export type JiraBitbucketTokenResponse = JiraBitbucketTokenResponses[keyof JiraBitbucketTokenResponses]
+
+export type JiraTestData = {
+  body?: {
+    url: string
+    email: string
+    token: string
+    project_key: string
+  }
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/jira/test"
+}
+
+export type JiraTestErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type JiraTestError = JiraTestErrors[keyof JiraTestErrors]
+
+export type JiraTestResponses = {
+  /**
+   * Test result
+   */
+  200: {
+    ok: boolean
+  }
+}
+
+export type JiraTestResponse = JiraTestResponses[keyof JiraTestResponses]
 
 export type McpStatusData = {
   body?: never

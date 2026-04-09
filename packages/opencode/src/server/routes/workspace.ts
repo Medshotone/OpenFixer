@@ -62,6 +62,35 @@ export const WorkspaceRoutes = lazy(() =>
         return c.json(Workspace.list(Instance.project))
       },
     )
+    .get(
+      "/:id",
+      describeRoute({
+        summary: "Get workspace",
+        description: "Get a workspace by ID.",
+        operationId: "experimental.workspace.get",
+        responses: {
+          200: {
+            description: "Workspace or null",
+            content: {
+              "application/json": {
+                schema: resolver(Workspace.Info.nullable()),
+              },
+            },
+          },
+        },
+      }),
+      validator(
+        "param",
+        z.object({
+          id: Workspace.Info.shape.id,
+        }),
+      ),
+      async (c) => {
+        const { id } = c.req.valid("param")
+        const space = await Workspace.get(id)
+        return c.json(space ?? null)
+      },
+    )
     .delete(
       "/:id",
       describeRoute({

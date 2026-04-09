@@ -138,7 +138,35 @@ const SessionRow = (props: {
           </Match>
         </Switch>
       </div>
-      <span class="text-14-regular text-text-strong min-w-0 flex-1 truncate">{title()}</span>
+      <span class="text-14-regular text-text-strong min-w-0 flex-1 truncate flex items-center gap-1">
+        <Show
+          when={typeof props.session.metadata?.jira_url === "string" ? props.session.metadata.jira_url : null}
+          fallback={
+            <Show when={props.session.title.startsWith("Jira:")}>
+              <span
+                class="shrink-0 inline-flex items-center justify-center size-4 rounded text-[9px] font-bold bg-[#0052CC] text-white"
+                title="Jira session"
+              >
+                J
+              </span>
+            </Show>
+          }
+        >
+          {(url) => (
+            <a
+              href={url()}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              class="shrink-0 inline-flex items-center justify-center size-4 rounded text-[9px] font-bold bg-[#0052CC] text-white hover:bg-[#0065FF]"
+              title={`Open in Jira: ${props.session.metadata?.jira_key ?? ""}`}
+            >
+              J
+            </a>
+          )}
+        </Show>
+        {title()}
+      </span>
     </A>
   )
 }

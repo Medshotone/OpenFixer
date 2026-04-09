@@ -12,21 +12,23 @@ type Config = z.infer<typeof Config>
 
 export const WorktreeAdaptor: Adaptor = {
   async configure(info) {
-    const worktree = await Worktree.makeWorktreeInfo(info.name ?? undefined)
+    const extra = info.extra as { name?: string; branch?: string; source?: string } | null
+    const worktree = await Worktree.makeWorktreeInfo(extra?.name ?? info.name ?? undefined)
     return {
       ...info,
       name: worktree.name,
-      branch: worktree.branch,
+      branch: extra?.branch ?? worktree.branch,
       directory: worktree.directory,
     }
   },
   async create(info) {
     const config = Config.parse(info)
+    const source = (config.extra as { source?: string } | null)?.source
     await Worktree.createFromInfo({
       name: config.name,
       directory: config.directory,
       branch: config.branch,
-    })
+    }, undefined, source)
   },
   async remove(info) {
     const config = Config.parse(info)

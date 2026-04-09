@@ -26,6 +26,7 @@ import { ConfigRoutes } from "./routes/config"
 import { ExperimentalRoutes } from "./routes/experimental"
 import { ProviderRoutes } from "./routes/provider"
 import { EventRoutes } from "./routes/event"
+import { JiraRoutes } from "./routes/jira"
 import { errorHandler } from "./middleware"
 
 const log = Log.create({ service: "server" })
@@ -54,6 +55,7 @@ export const InstanceRoutes = (app?: Hono) =>
     .route("/provider", ProviderRoutes())
     .route("/", FileRoutes())
     .route("/", EventRoutes())
+    .route("/jira", JiraRoutes())
     .route("/mcp", McpRoutes())
     .route("/tui", TuiRoutes())
     .post(
