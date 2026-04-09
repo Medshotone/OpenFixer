@@ -9,7 +9,7 @@ import { Config } from "../config/config"
 import { Flag } from "../flag/flag"
 import { Installation } from "../installation"
 
-import { Database, NotFoundError, eq, and, gte, isNull, desc, like, inArray, lt } from "../storage/db"
+import { Database, NotFoundError, eq, and, gte, isNull, desc, like, inArray, lt, sql } from "../storage/db"
 import { SyncEvent } from "../sync"
 import type { SQL } from "../storage/db"
 import { SessionTable } from "./session.sql"
@@ -751,6 +751,7 @@ export namespace Session {
     start?: number
     search?: string
     limit?: number
+    metadata?: Record<string, string>
   }) {
     const project = Instance.project
     const conditions = [eq(SessionTable.project_id, project.id)]
@@ -769,6 +770,11 @@ export namespace Session {
     }
     if (input?.search) {
       conditions.push(like(SessionTable.title, `%${input.search}%`))
+    }
+    if (input?.metadata) {
+      for (const [k, v] of Object.entries(input.metadata)) {
+        conditions.push(sql`json_extract(${SessionTable.metadata}, ${'$.' + k}) = ${v}`)
+      }
     }
 
     const limit = input?.limit ?? 100

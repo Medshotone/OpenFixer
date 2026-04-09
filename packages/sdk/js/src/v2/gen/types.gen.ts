@@ -3019,6 +3019,10 @@ export type SessionListData = {
      * Maximum number of sessions to return
      */
     limit?: number
+    /**
+     * JSON object of metadata key/value pairs to filter by
+     */
+    metadata?: string
   }
   url: "/session"
 }
