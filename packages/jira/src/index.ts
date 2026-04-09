@@ -308,6 +308,13 @@ async function poll(dir: string) {
         }
       }
 
+      if (prUrl) {
+        await wc.session.prompt({
+          sessionID: sid,
+          parts: [{ type: "text", text: `PR created: ${prUrl}` }],
+        })
+      }
+
       const full = prUrl ? `${reply}\n\n**PR**: ${prUrl}` : reply
       if (!full) {
         console.warn(`[jira] ${issue.key}: no reply to post, skipping`)
