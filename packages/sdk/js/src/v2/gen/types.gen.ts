@@ -4532,6 +4532,7 @@ export type JiraGetResponses = {
     enabled: boolean
     bitbucket_token: string | null
     bitbucket_user: string | null
+    branch: string | null
   } | null
 }
 
@@ -4547,6 +4548,7 @@ export type JiraUpsertData = {
     enabled?: boolean
     bitbucket_token?: string | null
     bitbucket_user?: string | null
+    branch?: string | null
   }
   path?: never
   query?: {
@@ -4578,6 +4580,7 @@ export type JiraUpsertResponses = {
     enabled: boolean
     bitbucket_token: string | null
     bitbucket_user: string | null
+    branch: string | null
   }
 }
 

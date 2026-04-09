@@ -16,5 +16,6 @@ export const JiraConfigTable = sqliteTable("jira_config", {
   enabled: integer({ mode: "boolean" }).notNull().default(true),
   bitbucket_token: text(),
   bitbucket_user: text(),
+  branch: text(),
   ...Timestamps,
 })

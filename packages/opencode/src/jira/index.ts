@@ -16,6 +16,7 @@ export namespace Jira {
       enabled: z.boolean(),
       bitbucket_token: z.string().nullable(),
       bitbucket_user: z.string().nullable(),
+      branch: z.string().nullable(),
     })
     .meta({ ref: "JiraConfig" })
   export type Info = z.infer<typeof Info>
@@ -29,6 +30,7 @@ export namespace Jira {
     enabled: z.boolean().default(true),
     bitbucket_token: z.string().nullable().optional(),
     bitbucket_user: z.string().nullable().optional(),
+    branch: z.string().nullable().optional(),
   })
   export type UpsertInput = z.infer<typeof UpsertInput>
 
