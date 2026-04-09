@@ -58,8 +58,8 @@ function parseBitbucketRemote(url: string) {
 }
 
 async function bitbucketPR(opts: {
-  email: string; token: string; branch: string; title: string; body: string; workspace: string; repo: string
-}) {
+  email: string; token: string; branch: string; title: string; body: string; workspace: string; repo: string; dest?: string
+}): Promise<{ url: string } | { error: string }> {
   const auth = btoa(`${opts.email}:${opts.token}`)
   const res = await fetch(`https://api.bitbucket.org/2.0/repositories/${opts.workspace}/${opts.repo}/pullrequests`, {
     method: "POST",
@@ -68,13 +68,17 @@ async function bitbucketPR(opts: {
       title: opts.title,
       description: opts.body,
       source: { branch: { name: opts.branch } },
-      destination: { branch: { name: "main" } },
+      destination: { branch: { name: opts.dest ?? "main" } },
       close_source_branch: true,
     }),
-  }).catch(() => null)
-  if (!res?.ok) return null
+  }).catch((e: Error) => e)
+  if (res instanceof Error) return { error: res.message }
+  if (!res.ok) {
+    const body = await res.text().catch(() => "")
+    return { error: `${res.status} ${res.statusText}: ${body}` }
+  }
   const data = (await res.json()) as { links: { html: { href: string } } }
-  return data.links.html.href
+  return { url: data.links.html.href }
 }
 
 type IssueFields = {
@@ -153,7 +157,7 @@ async function poll(dir: string) {
       processed.add(key)
 
       const space = await client(dir).experimental.workspace.create({
-        directory: dir, type: "worktree", branch: null, extra: { name: issue.key.toLowerCase() },
+        directory: dir, type: "worktree", branch: null, extra: { name: issue.key },
       })
       if (space.error || !space.data?.directory || !space.data?.branch) {
         console.error(`[jira] ${issue.key}: failed to create workspace — ${space.error ?? "no directory"}`)
@@ -235,13 +239,14 @@ async function poll(dir: string) {
           } else if (!parsed) {
             console.warn(`[jira] ${issue.key}: remote is not Bitbucket — skipping PR creation`)
           } else {
-            prUrl = await bitbucketPR({
+            const pr = await bitbucketPR({
               email: cfg.data.email, token: bbToken,
               branch: space.data.branch, title: msg, body: prBody,
               workspace: parsed.workspace, repo: parsed.repo,
+              dest: cfg.data.branch ?? undefined,
             })
-            if (prUrl) console.log(`[jira] ${issue.key}: PR created — ${prUrl}`)
-            else console.error(`[jira] ${issue.key}: PR creation failed`)
+            if ("url" in pr) { prUrl = pr.url; console.log(`[jira] ${issue.key}: PR created — ${pr.url}`) }
+            else console.error(`[jira] ${issue.key}: PR creation failed — ${pr.error}`)
           }
         }
       }
@@ -396,5 +401,5 @@ for (const dir of dirs) {
   poll(dir)
   setInterval(() => poll(dir), cfg.data.interval * 1000)
 }
-//TODO check if push pr work correct
+
 console.log("[jira] Poller running. Ctrl+C to stop.")

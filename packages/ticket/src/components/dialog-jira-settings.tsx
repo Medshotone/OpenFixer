@@ -24,6 +24,7 @@ export function DialogJiraSettings(props: { project: LocalProject }) {
     enabled: true,
     bitbucket_token: "",
     bitbucket_user: "",
+    branch: "",
     showToken: false,
     showBBToken: false,
     result: null as boolean | null,
@@ -43,6 +44,7 @@ export function DialogJiraSettings(props: { project: LocalProject }) {
       setStore("interval", cfg.data.interval ?? 30)
       setStore("enabled", cfg.data.enabled ?? true)
       setStore("bitbucket_user", cfg.data.bitbucket_user ?? "")
+      setStore("branch", cfg.data.branch ?? "")
     }
     if (tok.data) setStore("token", tok.data)
     if (bbtok.data) setStore("bitbucket_token", bbtok.data)
@@ -60,6 +62,7 @@ export function DialogJiraSettings(props: { project: LocalProject }) {
         enabled: store.enabled,
         bitbucket_token: store.bitbucket_token.trim() || null,
         bitbucket_user: store.bitbucket_user.trim() || null,
+        branch: store.branch.trim() || null,
       })
       dialog.close()
     },
@@ -149,6 +152,12 @@ export function DialogJiraSettings(props: { project: LocalProject }) {
             placeholder={language.t("dialog.jira.bitbucketUser.placeholder")}
             value={store.bitbucket_user}
             onChange={(v) => setStore("bitbucket_user", v)}
+          />
+          <TextField
+            label={language.t("dialog.jira.branch")}
+            placeholder={language.t("dialog.jira.branch.placeholder")}
+            value={store.branch}
+            onChange={(v) => setStore("branch", v)}
           />
           <TextField
             label={language.t("dialog.jira.projectKey")}

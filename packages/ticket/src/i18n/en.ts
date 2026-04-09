@@ -369,6 +369,8 @@ export const dict = {
   "dialog.jira.bitbucketToken.placeholder": "Optional — required for opening PRs on Bitbucket",
   "dialog.jira.bitbucketUser": "Bitbucket Username",
   "dialog.jira.bitbucketUser.placeholder": "Optional — your Bitbucket username for pushing code",
+  "dialog.jira.branch": "PR Destination Branch",
+  "dialog.jira.branch.placeholder": "Optional — defaults to main (e.g. dev, master)",
   "dialog.jira.projectKey": "Project Key",
   "dialog.jira.projectKey.placeholder": "e.g. AILA",
   "dialog.jira.interval": "Polling Interval (seconds)",
