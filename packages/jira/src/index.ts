@@ -281,13 +281,15 @@ type AdfNode = { type: string; attrs?: Record<string, unknown>; content?: AdfNod
 
 function inline(src: string): AdfNode[] {
   const nodes: AdfNode[] = []
-  const re = /\*\*(.+?)\*\*|__(.+?)__|`(.+?)`|\*(.+?)\*|_(.+?)_/g
+  const re = /\[([^\]]+)\]\((https?:\/\/[^)]+)\)|\*\*(.+?)\*\*|__(.+?)__|`(.+?)`|\*(.+?)\*|_(.+?)_|(?<![(\[])(https?:\/\/\S+)/g
   let pos = 0
   for (const m of src.matchAll(re)) {
     if (m.index! > pos) nodes.push({ type: "text", text: src.slice(pos, m.index) })
-    if (m[1] ?? m[2]) nodes.push({ type: "text", text: (m[1] ?? m[2])!, marks: [{ type: "strong" }] })
-    else if (m[3]) nodes.push({ type: "text", text: m[3], marks: [{ type: "code" }] })
-    else nodes.push({ type: "text", text: (m[4] ?? m[5])!, marks: [{ type: "em" }] })
+    if (m[1]) nodes.push({ type: "text", text: m[1], marks: [{ type: "link", attrs: { href: m[2] } }] })
+    else if (m[3] ?? m[4]) nodes.push({ type: "text", text: (m[3] ?? m[4])!, marks: [{ type: "strong" }] })
+    else if (m[5]) nodes.push({ type: "text", text: m[5], marks: [{ type: "code" }] })
+    else if (m[6] ?? m[7]) nodes.push({ type: "text", text: (m[6] ?? m[7])!, marks: [{ type: "em" }] })
+    else if (m[8]) nodes.push({ type: "text", text: m[8], marks: [{ type: "link", attrs: { href: m[8] } }] })
     pos = m.index! + m[0].length
   }
   if (pos < src.length) nodes.push({ type: "text", text: src.slice(pos) })
