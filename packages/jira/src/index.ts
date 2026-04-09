@@ -204,7 +204,7 @@ async function poll(dir: string) {
         console.log(`[jira] ${issue.key} #${comment.id}: @OpenFixer mention found — creating workspace`)
         const slug = `openfixer/${issue.key.toUpperCase()}`
         const space = await client(dir).experimental.workspace.create({
-          directory: dir, type: "worktree", branch: null, extra: { name: issue.key, branch: slug },
+          directory: dir, type: "worktree", branch: null, extra: { name: issue.key, branch: slug, source: cfg.data.branch ?? undefined },
         })
         if (space.error || !space.data?.directory || !space.data?.branch) {
           console.error(`[jira] ${issue.key}: failed to create workspace —`, JSON.stringify(space.error ?? "no directory"))

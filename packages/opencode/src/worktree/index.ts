@@ -158,7 +158,7 @@ export namespace Worktree {
 
   export interface Interface {
     readonly makeWorktreeInfo: (name?: string) => Effect.Effect<Info>
-    readonly createFromInfo: (info: Info, startCommand?: string) => Effect.Effect<void>
+    readonly createFromInfo: (info: Info, startCommand?: string, source?: string) => Effect.Effect<void>
     readonly create: (input?: CreateInput) => Effect.Effect<Info>
     readonly remove: (input: RemoveInput) => Effect.Effect<boolean>
     readonly reset: (input: ResetInput) => Effect.Effect<boolean>
@@ -231,9 +231,11 @@ export namespace Worktree {
         return yield* candidate(root, base || undefined)
       })
 
-      const setup = Effect.fnUntraced(function* (info: Info) {
+      const setup = Effect.fnUntraced(function* (info: Info, source?: string) {
         const ctx = yield* InstanceState.context
-        const created = yield* git(["worktree", "add", "--no-checkout", "-b", info.branch, info.directory], {
+        const args = ["worktree", "add", "--no-checkout", "-b", info.branch, info.directory]
+        if (source) args.push(source)
+        const created = yield* git(args, {
           cwd: ctx.worktree,
         })
         if (created.code !== 0) {
@@ -289,8 +291,8 @@ export namespace Worktree {
         yield* runStartScripts(info.directory, { projectID, extra })
       })
 
-      const createFromInfo = Effect.fn("Worktree.createFromInfo")(function* (info: Info, startCommand?: string) {
-        yield* setup(info)
+      const createFromInfo = Effect.fn("Worktree.createFromInfo")(function* (info: Info, startCommand?: string, source?: string) {
+        yield* setup(info, source)
         yield* boot(info, startCommand)
       })
 
@@ -594,8 +596,8 @@ export namespace Worktree {
     return runPromise((svc) => svc.makeWorktreeInfo(name))
   }
 
-  export async function createFromInfo(info: Info, startCommand?: string) {
-    return runPromise((svc) => svc.createFromInfo(info, startCommand))
+  export async function createFromInfo(info: Info, startCommand?: string, source?: string) {
+    return runPromise((svc) => svc.createFromInfo(info, startCommand, source))
   }
 
   export async function create(input?: CreateInput) {
