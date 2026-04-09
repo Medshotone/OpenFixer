@@ -57,6 +57,28 @@ function parseBitbucketRemote(url: string) {
   return { workspace: m[1], repo: m[2] }
 }
 
+async function find(dir: string, key: string) {
+  const sessions = await client(dir).session.list({ metadata: JSON.stringify({ jira_key: key }) })
+  if (sessions.error || !sessions.data) return null
+  const active = sessions.data.find((s) => !s.time.archived)
+  if (!active?.workspaceID) return null
+  const space = await client(dir).experimental.workspace.get({ id: active.workspaceID })
+  if (space.error || !space.data?.directory) return null
+  return { session: active, workspace: space.data }
+}
+
+async function history(url: string, key: string, headers: Record<string, string>) {
+  const res = await fetch(`${url}/rest/api/3/issue/${key}/comment?orderBy=created&maxResults=20`, { headers }).catch(() => null)
+  if (!res?.ok) return ""
+  const { comments } = (await res.json()) as { comments: { created: string; body: unknown; author: { displayName: string } }[] }
+  if (!comments.length) return ""
+  const lines = comments.map((c) => {
+    const date = new Date(c.created).toISOString().slice(0, 16).replace("T", " ")
+    return `**${c.author.displayName}** (${date}):\n${extract(c.body)}`
+  })
+  return `## Previous comments on ${key}\n\n${lines.join("\n\n")}`
+}
+
 async function bitbucketPR(opts: {
   email: string; token: string; branch: string; title: string; body: string; workspace: string; repo: string; dest?: string
 }): Promise<{ url: string } | { error: string }> {
@@ -153,46 +175,72 @@ async function poll(dir: string) {
       const text = extract(comment.body)
       if (!text.toLowerCase().includes("@openfixer")) continue
 
-      console.log(`[jira] ${issue.key} #${comment.id}: @OpenFixer mention found — creating workspace`)
       processed.add(key)
 
-      const space = await client(dir).experimental.workspace.create({
-        directory: dir, type: "worktree", branch: null, extra: { name: issue.key },
-      })
-      if (space.error || !space.data?.directory || !space.data?.branch) {
-        console.error(`[jira] ${issue.key}: failed to create workspace — ${space.error ?? "no directory"}`)
-        continue
+      const existing = await find(dir, issue.key)
+
+      let sid: string
+      let wc: ReturnType<typeof createOpencodeClient>
+      let wdir: string
+      let branch: string
+
+      if (existing) {
+        console.log(`[jira] ${issue.key} #${comment.id}: reusing session ${existing.session.id}`)
+        sid = existing.session.id
+        wc = createOpencodeClient({ baseUrl: base, directory: existing.workspace.directory!, experimental_workspaceID: existing.workspace.id })
+        wdir = existing.workspace.directory!
+        branch = existing.workspace.branch!
+      } else {
+        console.log(`[jira] ${issue.key} #${comment.id}: @OpenFixer mention found — creating workspace`)
+        const slug = `openfixer/${issue.key.toUpperCase()}`
+        const space = await client(dir).experimental.workspace.create({
+          directory: dir, type: "worktree", branch: null, extra: { name: issue.key, branch: slug },
+        })
+        if (space.error || !space.data?.directory || !space.data?.branch) {
+          console.error(`[jira] ${issue.key}: failed to create workspace — ${space.error ?? "no directory"}`)
+          continue
+        }
+        console.log(`[jira] ${issue.key}: workspace created (branch: ${space.data.branch})`)
+
+        const checkout = await run(space.data.directory, ["git", "reset", "--hard"])
+        if (!checkout.ok) {
+          console.error(`[jira] ${issue.key}: workspace checkout failed — ${checkout.out}`)
+          continue
+        }
+        console.log(`[jira] ${issue.key}: workspace ready, creating session...`)
+
+        wc = createOpencodeClient({ baseUrl: base, directory: space.data.directory, experimental_workspaceID: space.data.id })
+
+        const session = await wc.session.create({
+          title: slug,
+          workspaceID: space.data.id,
+          metadata: {
+            jira_url: `${cfg.data.url}/browse/${issue.key}?focusedCommentId=${comment.id}`,
+            jira_key: issue.key,
+          },
+        })
+        if (session.error) {
+          console.error(`[jira] ${issue.key}: failed to create session — ${session.error}`)
+          continue
+        }
+        console.log(`[jira] ${issue.key}: session created (${session.data.id})`)
+        sid = session.data.id
+        wdir = space.data.directory
+        branch = space.data.branch
       }
-      console.log(`[jira] ${issue.key}: workspace created (branch: ${space.data.branch})`)
 
-      // boot() is forked — files are checked out async. Force sync checkout before session starts.
-      const checkout = await run(space.data.directory, ["git", "reset", "--hard"])
-      if (!checkout.ok) {
-        console.error(`[jira] ${issue.key}: workspace checkout failed — ${checkout.out}`)
-        continue
-      }
-      console.log(`[jira] ${issue.key}: workspace ready, creating session...`)
+      // Build prompt
+      const prompt = existing
+        ? followup(issue.key, comment.author.displayName, text)
+        : await (async () => {
+            const prev = await history(cfg.data!.url, issue.key, headers)
+            return context(issue, text, cfg.data!.url, comment.id, prev)
+          })()
 
-      // Use worktree directory so POST requests (session.create/prompt) route to the right Instance
-      const wc = createOpencodeClient({ baseUrl: base, directory: space.data.directory, experimental_workspaceID: space.data.id })
-
-      const session = await wc.session.create({
-        title: `Jira: ${issue.key} - ${issue.fields.summary}`,
-        workspaceID: space.data.id,
-        metadata: {
-          jira_url: `${cfg.data.url}/browse/${issue.key}?focusedCommentId=${comment.id}`,
-          jira_key: issue.key,
-        },
-      })
-      if (session.error) {
-        console.error(`[jira] ${issue.key}: failed to create session — ${session.error}`)
-        continue
-      }
-      console.log(`[jira] ${issue.key}: session created (${session.data.id}), sending prompt...`)
-
+      console.log(`[jira] ${issue.key}: sending prompt to session ${sid}...`)
       const result = await wc.session.prompt({
-        sessionID: session.data.id,
-        parts: [{ type: "text", text: context(issue, text, cfg.data.url, comment.id) }],
+        sessionID: sid,
+        parts: [{ type: "text", text: prompt }],
       })
       if (result.error) {
         console.error(`[jira] ${issue.key}: prompt failed — ${result.error}`)
@@ -204,34 +252,33 @@ async function poll(dir: string) {
         .map((p) => p.text)
         .join("\n")
 
-      const status = await run(space.data.directory, ["git", "status", "--porcelain"])
+      const status = await run(wdir, ["git", "status", "--porcelain"])
       const changed = status.out.length > 0
       console.log(`[jira] ${issue.key}: git status — ${changed ? status.out : "(clean)"}`)
 
       let prUrl: string | null = null
       if (!changed) {
-        console.log(`[jira] ${issue.key}: no file changes, removing workspace`)
+        console.log(`[jira] ${issue.key}: no file changes`)
       } else {
         console.log(`[jira] ${issue.key}: changes detected — committing and opening PR`)
         const msg = `fix(${issue.key}): ${issue.fields.summary}`
         const prBody = `Resolves: ${cfg.data.url}/browse/${issue.key}\n\nTriggered by @OpenFixer mention in Jira.`
-        await run(space.data.directory, ["git", "add", "-A"])
-        const committed = await run(space.data.directory, ["git", "commit", "-m", msg])
+        await run(wdir, ["git", "add", "-A"])
+        const committed = await run(wdir, ["git", "commit", "-m", msg])
         if (!committed.ok) {
           console.error(`[jira] ${issue.key}: commit failed — ${committed.out}`)
         } else {
           const bbToken = (await client(dir).jira.bitbucketToken({ directory: dir })).data as string | null
-          const remote = (await run(space.data.directory, ["git", "remote", "get-url", "origin"])).out
+          const remote = (await run(wdir, ["git", "remote", "get-url", "origin"])).out
           const parsed = parseBitbucketRemote(remote)
-          // Push via HTTPS with token to avoid SSH passphrase prompts in non-interactive context
           const bbUser = cfg.data.bitbucket_user || cfg.data.email
           const pushUrl = bbToken && parsed
             ? `https://${encodeURIComponent(bbUser)}:${encodeURIComponent(bbToken)}@bitbucket.org/${parsed.workspace}/${parsed.repo}.git`
             : null
 
           const pushed = pushUrl
-            ? await run(space.data.directory, ["git", "-c", "credential.helper=", "push", pushUrl, space.data.branch])
-            : await run(space.data.directory, ["git", "-c", "core.sshCommand=ssh -o BatchMode=yes", "push", "origin", space.data.branch])
+            ? await run(wdir, ["git", "-c", "credential.helper=", "push", pushUrl, branch])
+            : await run(wdir, ["git", "-c", "core.sshCommand=ssh -o BatchMode=yes", "push", "origin", branch])
           if (!pushed.ok) {
             console.error(`[jira] ${issue.key}: push failed — ${pushed.out}`)
           } else if (!bbToken) {
@@ -241,7 +288,7 @@ async function poll(dir: string) {
           } else {
             const pr = await bitbucketPR({
               email: cfg.data.email, token: bbToken,
-              branch: space.data.branch, title: msg, body: prBody,
+              branch, title: msg, body: prBody,
               workspace: parsed.workspace, repo: parsed.repo,
               dest: cfg.data.branch ?? undefined,
             })
@@ -366,18 +413,26 @@ function extract(node: unknown): string {
   return (n.content ?? []).map(extract).join(" ")
 }
 
-function context(issue: { key: string; fields: IssueFields }, comment: string, url: string, commentId: string): string {
-  return `You are reviewing a Jira issue. Here is the full context:
+function context(issue: { key: string; fields: IssueFields }, comment: string, url: string, commentId: string, prev?: string): string {
+  const base = `You are reviewing a Jira issue. Here is the full context:
 
 **Issue**: ${issue.key} - ${issue.fields.summary}
 **Status**: ${issue.fields.status?.name ?? "Unknown"}
 **Assignee**: ${issue.fields.assignee?.displayName ?? "Unassigned"}
 
 **Description**:
-${extract(issue.fields.description) || "(no description)"}
+${extract(issue.fields.description) || "(no description)"}`
 
-**Request from @OpenFixer mention**:
+  const hist = prev ? `\n\n${prev}\n\n---` : ""
+
+  return `${base}${hist}
+
+**Current request from @OpenFixer mention**:
 ${comment.replace(/@openfixer/gi, "").trim()}`
+}
+
+function followup(key: string, author: string, comment: string) {
+  return `New comment on ${key} by ${author}:\n${comment.replace(/@openfixer/gi, "").trim()}`
 }
 
 for (const dir of dirs) {
