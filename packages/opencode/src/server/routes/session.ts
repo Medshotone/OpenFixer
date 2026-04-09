@@ -62,7 +62,7 @@ export const SessionRoutes = lazy(() =>
         const meta = query.metadata ? JSON.parse(query.metadata) as Record<string, string> : undefined
         const sessions: Session.Info[] = []
         for await (const session of Session.list({
-          directory: query.directory,
+          directory: meta ? undefined : query.directory,
           roots: query.roots,
           start: query.start,
           search: query.search,

@@ -58,13 +58,21 @@ function parseBitbucketRemote(url: string) {
 }
 
 async function find(dir: string, key: string) {
-  const sessions = await client(dir).session.list({ metadata: JSON.stringify({ jira_key: key }) })
+  // Look up workspace first (workspaces are correctly linked to project)
+  const spaces = await client(dir).experimental.workspace.list()
+  if (spaces.error || !spaces.data) return null
+  const slug = `openfixer/${key.toUpperCase()}`
+  const space = spaces.data.find((w) => w.branch === slug && w.directory)
+  if (!space) return null
+
+  // Query sessions through the workspace directory context
+  const wc = createOpencodeClient({ baseUrl: base, directory: space.directory!, experimental_workspaceID: space.id })
+  const sessions = await wc.session.list({ metadata: JSON.stringify({ jira_key: key }) })
   if (sessions.error || !sessions.data) return null
   const active = sessions.data.find((s) => !s.time.archived)
-  if (!active?.workspaceID) return null
-  const space = await client(dir).experimental.workspace.get({ id: active.workspaceID })
-  if (space.error || !space.data?.directory) return null
-  return { session: active, workspace: space.data }
+  if (!active) return null
+
+  return { session: active, workspace: space }
 }
 
 async function history(url: string, key: string, headers: Record<string, string>) {
@@ -176,8 +184,10 @@ async function poll(dir: string) {
       if (!text.toLowerCase().includes("@openfixer")) continue
 
       processed.add(key)
+      console.log(`[jira] dir: ${dir}, issue.key: ${issue.key}`)
 
       const existing = await find(dir, issue.key)
+      console.log(`[jira] existing: ${existing}`)
 
       let sid: string
       let wc: ReturnType<typeof createOpencodeClient>
@@ -197,7 +207,7 @@ async function poll(dir: string) {
           directory: dir, type: "worktree", branch: null, extra: { name: issue.key, branch: slug },
         })
         if (space.error || !space.data?.directory || !space.data?.branch) {
-          console.error(`[jira] ${issue.key}: failed to create workspace — ${space.error ?? "no directory"}`)
+          console.error(`[jira] ${issue.key}: failed to create workspace —`, JSON.stringify(space.error ?? "no directory"))
           continue
         }
         console.log(`[jira] ${issue.key}: workspace created (branch: ${space.data.branch})`)
