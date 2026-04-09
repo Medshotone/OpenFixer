@@ -188,7 +188,6 @@ async function poll(dir: string) {
       console.log(`[jira] dir: ${dir}, issue.key: ${issue.key}`)
 
       const existing = await find(dir, issue.key)
-      console.log(`[jira] existing: ${existing}`)
 
       let sid: string
       let wc: ReturnType<typeof createOpencodeClient>
