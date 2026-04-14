@@ -1,3 +1,9 @@
+## Project context
+
+This repo is **OpenFixer**, a fork of [OpenCode](https://opencode.ai) being shaped into a ticket-driven coding agent — it consumes input from ticketing and collaboration tools instead of only a terminal. Integration packages live under `packages/jira` (and future siblings, e.g. Slack, Teams); the browser UI lives in `packages/ticket`. The inherited agent core and server remain in `packages/opencode` — that package name is intentionally unchanged to avoid churning imports, the CLI bin, and publish targets.
+
+## Workflow
+
 - To regenerate the JavaScript SDK, run `./packages/sdk/js/script/build.ts`.
 - ALWAYS USE PARALLEL TOOLS WHEN APPLICABLE.
 - The default branch in this repo is `dev`.
