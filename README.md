@@ -1,3 +1,37 @@
+# OpenFixer
+
+**OpenFixer** is a fork of [OpenCode](https://opencode.ai) with a different mission: instead of being a general-purpose terminal coding agent, it is being shaped into a **code assistant that plugs into the services teams already work in** — Jira, Slack, Teams, and similar tools.
+
+The idea is simple: your tickets, chat threads, and incidents already describe the work. OpenFixer picks those up as the entry point, reasons over the codebase, and drives changes from there — so the assistant meets the team where the work is discussed, not only in a terminal.
+
+## Status
+
+Early development. The core agent (inherited from OpenCode) works as before. The OpenFixer-specific work so far focuses on the first integration target (Jira) and a new web UI for ticket-driven workflows.
+
+## What has changed since the fork
+
+Fork point: [`ca3b5086`].
+
+### Jira integration
+
+A standalone poller (`packages/jira`) that turns a Jira ticket into a driver for the agent:
+
+Server-side pieces (`packages/opencode/src/jira`, `packages/opencode/src/server/routes/jira.ts`):
+
+### New web UI — `ticket`
+
+A browser-based frontend (`packages/ticket`) aimed at non-terminal users:
+
+### Workspace, session, SDK, and infra
+
+## Relationship to OpenCode
+
+OpenFixer keeps OpenCode's agent core, provider-agnostic model support, LSP integration, and client/server architecture. Everything below this section is the **original OpenCode README**, preserved as-is for installation, agent behavior, and upstream documentation. OpenFixer-specific install/usage docs will be added here as the project stabilizes.
+
+> OpenFixer is not affiliated with the OpenCode team.
+
+---
+
 <p align="center">
   <a href="https://opencode.ai">
     <picture>
