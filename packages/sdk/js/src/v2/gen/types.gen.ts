@@ -1973,6 +1973,14 @@ export type File = {
   status: "added" | "deleted" | "modified"
 }
 
+export type ProjectAgentConfig = {
+  project_id: string
+  agent: string | null
+  model: string | null
+  variant: string | null
+  auto_accept: boolean
+}
+
 export type McpStatusConnected = {
   status: "connected"
 }
@@ -4598,6 +4606,10 @@ export type JiraGetResponses = {
     bitbucket_token: string | null
     bitbucket_user: string | null
     branch: string | null
+    agent: string | null
+    model: string | null
+    variant: string | null
+    auto_accept: boolean | null
   } | null
 }
 
@@ -4614,6 +4626,10 @@ export type JiraUpsertData = {
     bitbucket_token?: string | null
     bitbucket_user?: string | null
     branch?: string | null
+    agent?: string | null
+    model?: string | null
+    variant?: string | null
+    auto_accept?: boolean | null
   }
   path?: never
   query?: {
@@ -4646,6 +4662,10 @@ export type JiraUpsertResponses = {
     bitbucket_token: string | null
     bitbucket_user: string | null
     branch: string | null
+    agent: string | null
+    model: string | null
+    variant: string | null
+    auto_accept: boolean | null
   }
 }
 
@@ -4723,6 +4743,82 @@ export type JiraTestResponses = {
 }
 
 export type JiraTestResponse = JiraTestResponses[keyof JiraTestResponses]
+
+export type JiraResolvedData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/jira/resolved"
+}
+
+export type JiraResolvedResponses = {
+  /**
+   * Resolved config
+   */
+  200: {
+    agent: string | null
+    model: string | null
+    variant: string | null
+    auto_accept: boolean
+  }
+}
+
+export type JiraResolvedResponse = JiraResolvedResponses[keyof JiraResolvedResponses]
+
+export type ProjectAgentGetData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/project-agent"
+}
+
+export type ProjectAgentGetResponses = {
+  /**
+   * Project agent config or null
+   */
+  200: ProjectAgentConfig | null
+}
+
+export type ProjectAgentGetResponse = ProjectAgentGetResponses[keyof ProjectAgentGetResponses]
+
+export type ProjectAgentUpsertData = {
+  body?: {
+    agent: string | null
+    model: string | null
+    variant: string | null
+    auto_accept?: boolean
+  }
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/project-agent"
+}
+
+export type ProjectAgentUpsertErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type ProjectAgentUpsertError = ProjectAgentUpsertErrors[keyof ProjectAgentUpsertErrors]
+
+export type ProjectAgentUpsertResponses = {
+  /**
+   * Updated config
+   */
+  200: ProjectAgentConfig
+}
+
+export type ProjectAgentUpsertResponse = ProjectAgentUpsertResponses[keyof ProjectAgentUpsertResponses]
 
 export type McpStatusData = {
   body?: never

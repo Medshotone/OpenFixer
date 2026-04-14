@@ -29,6 +29,7 @@ export type ProjectSidebarContext = {
   closeProject: (directory: string) => void
   showEditProjectDialog: (project: LocalProject) => void
   showJiraSettingsDialog: (project: LocalProject) => void
+  showProjectSettingsDialog: (project: LocalProject) => void
   toggleProjectWorkspaces: (project: LocalProject) => void
   workspacesEnabled: (project: LocalProject) => boolean
   workspaceIds: (project: LocalProject) => string[]
@@ -69,6 +70,7 @@ const ProjectTile = (props: {
   navigateToProject: (directory: string) => void
   showEditProjectDialog: (project: LocalProject) => void
   showJiraSettingsDialog: (project: LocalProject) => void
+  showProjectSettingsDialog: (project: LocalProject) => void
   toggleProjectWorkspaces: (project: LocalProject) => void
   workspacesEnabled: (project: LocalProject) => boolean
   closeProject: (directory: string) => void
@@ -154,6 +156,9 @@ const ProjectTile = (props: {
         <ContextMenu.Content>
           <ContextMenu.Item onSelect={() => props.showEditProjectDialog(props.project)}>
             <ContextMenu.ItemLabel>{props.language.t("common.edit")}</ContextMenu.ItemLabel>
+          </ContextMenu.Item>
+          <ContextMenu.Item onSelect={() => props.showProjectSettingsDialog(props.project)}>
+            <ContextMenu.ItemLabel>{props.language.t("sidebar.project.settings")}</ContextMenu.ItemLabel>
           </ContextMenu.Item>
           <ContextMenu.Item onSelect={() => props.showJiraSettingsDialog(props.project)}>
             <ContextMenu.ItemLabel>{props.language.t("sidebar.project.jira")}</ContextMenu.ItemLabel>
@@ -341,6 +346,7 @@ export const SortableProject = (props: {
       navigateToProject={props.ctx.navigateToProject}
       showEditProjectDialog={props.ctx.showEditProjectDialog}
       showJiraSettingsDialog={props.ctx.showJiraSettingsDialog}
+      showProjectSettingsDialog={props.ctx.showProjectSettingsDialog}
       toggleProjectWorkspaces={props.ctx.toggleProjectWorkspaces}
       workspacesEnabled={props.ctx.workspacesEnabled}
       closeProject={props.ctx.closeProject}

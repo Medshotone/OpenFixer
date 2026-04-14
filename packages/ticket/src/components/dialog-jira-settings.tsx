@@ -9,6 +9,8 @@ import { createStore } from "solid-js/store"
 import { useGlobalSDK } from "@/context/global-sdk"
 import { type LocalProject } from "@/context/layout"
 import { useLanguage } from "@/context/language"
+import { useAgentConfigOptions } from "@/hooks/use-agent-config-options"
+import { AgentConfigPanel, agentConfigLabels, type AgentConfigInherited } from "./agent-config-panel"
 
 export function DialogJiraSettings(props: { project: LocalProject }) {
   const dialog = useDialog()
@@ -29,7 +31,17 @@ export function DialogJiraSettings(props: { project: LocalProject }) {
     showBBToken: false,
     result: null as boolean | null,
     testing: false,
+    agent: null as string | null,
+    model: null as string | null,
+    variant: null as string | null,
+    auto_accept: null as boolean | null,
+    inherited: null as AgentConfigInherited | null,
   })
+
+  const { agents, variants } = useAgentConfigOptions(
+    () => props.project.worktree,
+    () => store.model,
+  )
 
   createEffect(async () => {
     const [cfg, tok, bbtok] = await Promise.all([
@@ -45,9 +57,15 @@ export function DialogJiraSettings(props: { project: LocalProject }) {
       setStore("enabled", cfg.data.enabled ?? true)
       setStore("bitbucket_user", cfg.data.bitbucket_user ?? "")
       setStore("branch", cfg.data.branch ?? "")
+      setStore("agent", cfg.data.agent ?? null)
+      setStore("model", cfg.data.model ?? null)
+      setStore("variant", cfg.data.variant ?? null)
+      setStore("auto_accept", cfg.data.auto_accept ?? null)
     }
     if (tok.data) setStore("token", tok.data)
     if (bbtok.data) setStore("bitbucket_token", bbtok.data)
+    const pa = await globalSDK.client.projectAgent.get({ directory: props.project.worktree })
+    setStore("inherited", pa.data ?? { agent: null, model: null, variant: null, auto_accept: false })
   })
 
   const saveMutation = useMutation(() => ({
@@ -63,6 +81,10 @@ export function DialogJiraSettings(props: { project: LocalProject }) {
         bitbucket_token: store.bitbucket_token.trim() || null,
         bitbucket_user: store.bitbucket_user.trim() || null,
         branch: store.branch.trim() || null,
+        agent: store.agent,
+        model: store.model,
+        variant: store.variant,
+        auto_accept: store.auto_accept,
       })
       dialog.close()
     },
@@ -203,6 +225,20 @@ export function DialogJiraSettings(props: { project: LocalProject }) {
             </Show>
           </div>
         </div>
+        <AgentConfigPanel
+          mode="override"
+          value={{ agent: store.agent, model: store.model, variant: store.variant, auto_accept: store.auto_accept }}
+          onChange={(v) => {
+            setStore("agent", v.agent)
+            setStore("model", v.model)
+            setStore("variant", v.variant)
+            setStore("auto_accept", v.auto_accept)
+          }}
+          agents={agents()}
+          variants={variants()}
+          inherited={store.inherited ?? undefined}
+          labels={agentConfigLabels(language.t)}
+        />
         <div class="flex justify-end gap-2">
           <Button type="button" variant="ghost" size="large" onClick={() => dialog.close()}>
             {language.t("common.cancel")}

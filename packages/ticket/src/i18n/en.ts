@@ -228,6 +228,15 @@ export const dict = {
   "common.save": "Save",
   "common.saving": "Saving...",
   "common.default": "Default",
+  "common.agent": "Agent",
+  "common.model": "Model",
+  "common.variant": "Variant",
+  "common.autoaccept": "Auto-accept permissions",
+  "common.inherit": "Inherit",
+  "common.clear": "Clear",
+  "common.enabled": "Enabled",
+  "common.disabled": "Disabled",
+  "common.none": "(none)",
   "common.attachment": "attachment",
 
   "prompt.placeholder.shell": "Enter shell command...",
@@ -346,6 +355,7 @@ export const dict = {
   "dialog.server.status.default": "Default",
   "server.row.noUsername": "no username",
 
+  "dialog.project.settings.title": "Project Settings",
   "dialog.project.edit.title": "Edit project",
   "dialog.project.edit.name": "Name",
   "dialog.project.edit.icon": "Icon",
@@ -701,6 +711,7 @@ export const dict = {
   "sidebar.project.viewAllSessions": "View all sessions",
   "sidebar.project.clearNotifications": "Clear notifications",
   "sidebar.project.jira": "Jira Settings",
+  "sidebar.project.settings": "Project settings",
   "sidebar.empty.title": "No projects open",
   "sidebar.empty.description": "Open a project to get started",
 

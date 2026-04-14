@@ -1,5 +1,5 @@
 import { createOpencodeClient } from "@opencode-ai/sdk/v2"
-import type { TextPart } from "@opencode-ai/sdk/v2"
+import type { TextPart, EventPermissionAsked } from "@opencode-ai/sdk/v2"
 
 // Connect to already-running opencode server (default port 4096, override with OPENCODE_SERVER_URL)
 const base = process.env.OPENCODE_SERVER_URL ?? "http://127.0.0.1:4096"
@@ -43,6 +43,22 @@ function jiraTime(date: Date, zone: string) {
 function client(dir: string) {
   if (!clients.has(dir)) clients.set(dir, createOpencodeClient({ baseUrl: base, directory: dir }))
   return clients.get(dir)!
+}
+
+function autoAccept(wc: ReturnType<typeof createOpencodeClient>, sid: string, wdir: string) {
+  let cancelled = false
+  ;(async () => {
+    // subscribe() is async and returns { stream: AsyncGenerator<Event> }
+    const { stream } = await wc.event.subscribe()
+    for await (const e of stream) {
+      if (cancelled) break
+      if (e?.type !== "permission.asked") continue
+      const req = (e as EventPermissionAsked).properties
+      if (req.sessionID !== sid) continue
+      await wc.permission.reply({ requestID: req.id, reply: "always", directory: wdir }).catch(() => undefined)
+    }
+  })().catch(() => undefined)
+  return () => { cancelled = true }
 }
 
 async function run(cwd: string, cmd: string[]) {
@@ -137,6 +153,13 @@ async function poll(dir: string) {
   if (!token) {
     console.error(`[jira] ${dir}: no token stored — save settings in the UI first`)
     return
+  }
+
+  const resolved = (await client(dir).jira.resolved({ directory: dir })).data ?? {
+    agent: null as string | null,
+    model: null as string | null,
+    variant: null as string | null,
+    auto_accept: false,
   }
 
   const auth = btoa(`${cfg.data.email}:${token}`)
@@ -248,10 +271,22 @@ async function poll(dir: string) {
           })()
 
       console.log(`[jira] ${issue.key}: sending prompt to session ${sid}...`)
+      const model = (() => {
+        if (!resolved.model) return undefined
+        const slash = resolved.model.indexOf("/")
+        if (slash === -1) return undefined
+        return { providerID: resolved.model.slice(0, slash), modelID: resolved.model.slice(slash + 1) }
+      })()
+
+      const unsub = resolved.auto_accept ? autoAccept(wc, sid, wdir) : () => {}
+
       const result = await wc.session.prompt({
         sessionID: sid,
+        agent: resolved.agent ?? undefined,
+        model,
+        variant: resolved.variant ?? undefined,
         parts: [{ type: "text", text: prompt }],
-      })
+      }).finally(unsub)
       if (result.error) {
         console.error(`[jira] ${issue.key}: prompt failed — ${result.error}`)
         continue

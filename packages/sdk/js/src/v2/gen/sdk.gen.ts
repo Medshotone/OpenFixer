@@ -55,6 +55,7 @@ import type {
   JiraBitbucketTokenResponses,
   JiraGetResponses,
   JiraRemoveResponses,
+  JiraResolvedResponses,
   JiraTestErrors,
   JiraTestResponses,
   JiraTokenResponses,
@@ -89,6 +90,9 @@ import type {
   PermissionRespondErrors,
   PermissionRespondResponses,
   PermissionRuleset,
+  ProjectAgentGetResponses,
+  ProjectAgentUpsertErrors,
+  ProjectAgentUpsertResponses,
   ProjectCurrentResponses,
   ProjectInitGitResponses,
   ProjectListResponses,
@@ -3220,6 +3224,10 @@ export class Jira2 extends HeyApiClient {
       bitbucket_token?: string | null
       bitbucket_user?: string | null
       branch?: string | null
+      agent?: string | null
+      model?: string | null
+      variant?: string | null
+      auto_accept?: boolean | null
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -3239,6 +3247,10 @@ export class Jira2 extends HeyApiClient {
             { in: "body", key: "bitbucket_token" },
             { in: "body", key: "bitbucket_user" },
             { in: "body", key: "branch" },
+            { in: "body", key: "agent" },
+            { in: "body", key: "model" },
+            { in: "body", key: "variant" },
+            { in: "body", key: "auto_accept" },
           ],
         },
       ],
@@ -3348,6 +3360,111 @@ export class Jira2 extends HeyApiClient {
     )
     return (options?.client ?? this.client).post<JiraTestResponses, JiraTestErrors, ThrowOnError>({
       url: "/jira/test",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Get resolved Jira agent config
+   *
+   * Merged view of project defaults and Jira overrides, for server-side pollers.
+   */
+  public resolved<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<JiraResolvedResponses, unknown, ThrowOnError>({
+      url: "/jira/resolved",
+      ...options,
+      ...params,
+    })
+  }
+}
+
+export class ProjectAgent extends HeyApiClient {
+  /**
+   * Get project agent config
+   *
+   * Default agent/model/variant/auto-accept for the current project.
+   */
+  public get<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<ProjectAgentGetResponses, unknown, ThrowOnError>({
+      url: "/project-agent",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Upsert project agent config
+   *
+   * Create or update the project-level agent defaults.
+   */
+  public upsert<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+      agent?: string | null
+      model?: string | null
+      variant?: string | null
+      auto_accept?: boolean
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "agent" },
+            { in: "body", key: "model" },
+            { in: "body", key: "variant" },
+            { in: "body", key: "auto_accept" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).put<ProjectAgentUpsertResponses, ProjectAgentUpsertErrors, ThrowOnError>({
+      url: "/project-agent",
       ...options,
       ...params,
       headers: {
@@ -4401,6 +4518,11 @@ export class OpencodeClient extends HeyApiClient {
   private _jira?: Jira2
   get jira(): Jira2 {
     return (this._jira ??= new Jira2({ client: this.client }))
+  }
+
+  private _projectAgent?: ProjectAgent
+  get projectAgent(): ProjectAgent {
+    return (this._projectAgent ??= new ProjectAgent({ client: this.client }))
   }
 
   private _mcp?: Mcp

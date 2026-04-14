@@ -123,5 +123,31 @@ export const JiraRoutes = lazy(() =>
         }).catch(() => null)
         return c.json({ ok: res?.ok ?? false })
       },
+    )
+    .get(
+      "/resolved",
+      describeRoute({
+        summary: "Get resolved Jira agent config",
+        description: "Merged view of project defaults and Jira overrides, for server-side pollers.",
+        operationId: "jira.resolved",
+        responses: {
+          200: {
+            description: "Resolved config",
+            content: {
+              "application/json": {
+                schema: resolver(
+                  z.object({
+                    agent: z.string().nullable(),
+                    model: z.string().nullable(),
+                    variant: z.string().nullable(),
+                    auto_accept: z.boolean(),
+                  }),
+                ),
+              },
+            },
+          },
+        },
+      }),
+      (c) => c.json(Jira.resolve(Instance.project.id)),
     ),
 )

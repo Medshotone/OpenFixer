@@ -2,6 +2,7 @@ import z from "zod"
 import { Database, eq } from "../storage/db"
 import { JiraConfigTable } from "./jira.sql"
 import { ProjectTable } from "../project/project.sql"
+import { ProjectAgent } from "../project-agent"
 import type { ProjectID } from "../project/schema"
 
 export namespace Jira {
@@ -17,6 +18,10 @@ export namespace Jira {
       bitbucket_token: z.string().nullable(),
       bitbucket_user: z.string().nullable(),
       branch: z.string().nullable(),
+      agent: z.string().nullable(),
+      model: z.string().nullable(),
+      variant: z.string().nullable(),
+      auto_accept: z.boolean().nullable(),
     })
     .meta({ ref: "JiraConfig" })
   export type Info = z.infer<typeof Info>
@@ -31,6 +36,10 @@ export namespace Jira {
     bitbucket_token: z.string().nullable().optional(),
     bitbucket_user: z.string().nullable().optional(),
     branch: z.string().nullable().optional(),
+    agent: z.string().nullable().optional(),
+    model: z.string().nullable().optional(),
+    variant: z.string().nullable().optional(),
+    auto_accept: z.boolean().nullable().optional(),
   })
   export type UpsertInput = z.infer<typeof UpsertInput>
 
@@ -66,5 +75,15 @@ export namespace Jira {
         .where(eq(JiraConfigTable.enabled, true))
         .all(),
     ).map((r) => r.worktree)
+  }
+
+  export function resolve(pid: string) {
+    const cfg = get(pid)
+    return ProjectAgent.resolve(pid, {
+      agent: cfg?.agent ?? null,
+      model: cfg?.model ?? null,
+      variant: cfg?.variant ?? null,
+      auto_accept: cfg?.auto_accept ?? null,
+    })
   }
 }
