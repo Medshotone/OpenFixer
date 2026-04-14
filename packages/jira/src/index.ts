@@ -309,10 +309,7 @@ async function poll(dir: string) {
       }
 
       if (prUrl) {
-        await wc.session.prompt({
-          sessionID: sid,
-          parts: [{ type: "text", text: `PR created: ${prUrl}` }],
-        })
+        await wc.session.note({ sessionID: sid, text: `PR created: ${prUrl}` })
       }
 
       const full = prUrl ? `${reply}\n\n**PR**: ${prUrl}` : reply

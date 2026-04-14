@@ -140,6 +140,8 @@ import type {
   SessionMessageResponses,
   SessionMessagesErrors,
   SessionMessagesResponses,
+  SessionNoteErrors,
+  SessionNoteResponses,
   SessionPromptAsyncErrors,
   SessionPromptAsyncResponses,
   SessionPromptErrors,
@@ -2168,6 +2170,45 @@ export class Session2 extends HeyApiClient {
       url: "/session/{sessionID}/message/{messageID}",
       ...options,
       ...params,
+    })
+  }
+
+  /**
+   * Append synthetic assistant note
+   *
+   * Append a pre-written text to the session transcript as an assistant message without invoking the model.
+   */
+  public note<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      workspace?: string
+      text?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "text" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<SessionNoteResponses, SessionNoteErrors, ThrowOnError>({
+      url: "/session/{sessionID}/note",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
     })
   }
 

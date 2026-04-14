@@ -869,6 +869,41 @@ export namespace Session {
     return runPromise((svc) => svc.updateMessage(msg))
   }
 
+  export async function note(input: { sessionID: SessionID; text: string }): Promise<MessageV2.WithParts> {
+    const existing = await messages({ sessionID: input.sessionID })
+    const prev = [...existing].reverse().find((m) => m.info.role === "assistant")?.info
+    if (!prev || prev.role !== "assistant")
+      throw new Error("Session.note requires a prior assistant message in the session")
+    const now = Date.now()
+    const id = MessageID.ascending()
+    const info: MessageV2.Assistant = {
+      id,
+      sessionID: input.sessionID,
+      role: "assistant",
+      time: { created: now, completed: now },
+      parentID: prev.id,
+      modelID: prev.modelID,
+      providerID: prev.providerID,
+      mode: prev.mode,
+      agent: prev.agent,
+      path: prev.path,
+      cost: 0,
+      tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+    }
+    await updateMessage(info)
+    const part: MessageV2.TextPart = {
+      id: PartID.ascending(),
+      sessionID: input.sessionID,
+      messageID: id,
+      type: "text",
+      text: input.text,
+      synthetic: true,
+      time: { start: now, end: now },
+    }
+    await updatePart(part)
+    return { info, parts: [part] }
+  }
+
   export const removeMessage = fn(z.object({ sessionID: SessionID.zod, messageID: MessageID.zod }), (input) =>
     runPromise((svc) => svc.removeMessage(input)),
   )

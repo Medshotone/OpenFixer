@@ -825,6 +825,39 @@ export const SessionRoutes = lazy(() =>
       },
     )
     .post(
+      "/:sessionID/note",
+      describeRoute({
+        summary: "Append synthetic assistant note",
+        description:
+          "Append a pre-written text to the session transcript as an assistant message without invoking the model.",
+        operationId: "session.note",
+        responses: {
+          200: {
+            description: "Created note",
+            content: {
+              "application/json": {
+                schema: resolver(
+                  z.object({
+                    info: MessageV2.Assistant,
+                    parts: MessageV2.Part.array(),
+                  }),
+                ),
+              },
+            },
+          },
+          ...errors(400, 404),
+        },
+      }),
+      validator("param", z.object({ sessionID: SessionID.zod })),
+      validator("json", z.object({ text: z.string() })),
+      async (c) => {
+        const sessionID = c.req.valid("param").sessionID
+        const body = c.req.valid("json")
+        const result = await Session.note({ sessionID, text: body.text })
+        return c.json(result)
+      },
+    )
+    .post(
       "/:sessionID/prompt_async",
       describeRoute({
         summary: "Send async message",

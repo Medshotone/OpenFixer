@@ -3764,6 +3764,45 @@ export type PartUpdateResponses = {
 
 export type PartUpdateResponse = PartUpdateResponses[keyof PartUpdateResponses]
 
+export type SessionNoteData = {
+  body?: {
+    text: string
+  }
+  path: {
+    sessionID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/session/{sessionID}/note"
+}
+
+export type SessionNoteErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type SessionNoteError = SessionNoteErrors[keyof SessionNoteErrors]
+
+export type SessionNoteResponses = {
+  /**
+   * Created note
+   */
+  200: {
+    info: AssistantMessage
+    parts: Array<Part>
+  }
+}
+
+export type SessionNoteResponse = SessionNoteResponses[keyof SessionNoteResponses]
+
 export type SessionPromptAsyncData = {
   body?: {
     messageID?: string
