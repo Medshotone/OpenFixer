@@ -1462,6 +1462,14 @@ export default function Layout(props: ParentProps) {
     })
   }
 
+  const showTeamsSettingsDialog = (project: LocalProject) => {
+    const run = ++dialogRun
+    void import("@/components/dialog-teams-settings").then((x) => {
+      if (dialogDead || dialogRun !== run) return
+      dialog.show(() => <x.DialogTeamsSettings project={project} />)
+    })
+  }
+
   const showProjectSettingsDialog = (project: LocalProject) => {
     const run = ++dialogRun
     void import("@/components/dialog-project-settings").then((x) => {
@@ -2032,6 +2040,7 @@ export default function Layout(props: ParentProps) {
     closeProject,
     showEditProjectDialog,
     showJiraSettingsDialog,
+    showTeamsSettingsDialog,
     showProjectSettingsDialog,
     toggleProjectWorkspaces,
     workspacesEnabled: (project) => project.vcs === "git" && layout.sidebar.workspaces(project.worktree)(),

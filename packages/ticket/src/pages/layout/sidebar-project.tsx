@@ -29,6 +29,7 @@ export type ProjectSidebarContext = {
   closeProject: (directory: string) => void
   showEditProjectDialog: (project: LocalProject) => void
   showJiraSettingsDialog: (project: LocalProject) => void
+  showTeamsSettingsDialog: (project: LocalProject) => void
   showProjectSettingsDialog: (project: LocalProject) => void
   toggleProjectWorkspaces: (project: LocalProject) => void
   workspacesEnabled: (project: LocalProject) => boolean
@@ -70,6 +71,7 @@ const ProjectTile = (props: {
   navigateToProject: (directory: string) => void
   showEditProjectDialog: (project: LocalProject) => void
   showJiraSettingsDialog: (project: LocalProject) => void
+  showTeamsSettingsDialog: (project: LocalProject) => void
   showProjectSettingsDialog: (project: LocalProject) => void
   toggleProjectWorkspaces: (project: LocalProject) => void
   workspacesEnabled: (project: LocalProject) => boolean
@@ -162,6 +164,9 @@ const ProjectTile = (props: {
           </ContextMenu.Item>
           <ContextMenu.Item onSelect={() => props.showJiraSettingsDialog(props.project)}>
             <ContextMenu.ItemLabel>{props.language.t("sidebar.project.jira")}</ContextMenu.ItemLabel>
+          </ContextMenu.Item>
+          <ContextMenu.Item onSelect={() => props.showTeamsSettingsDialog(props.project)}>
+            <ContextMenu.ItemLabel>{props.language.t("sidebar.project.teams")}</ContextMenu.ItemLabel>
           </ContextMenu.Item>
           <ContextMenu.Item
             data-action="project-workspaces-toggle"
@@ -346,6 +351,7 @@ export const SortableProject = (props: {
       navigateToProject={props.ctx.navigateToProject}
       showEditProjectDialog={props.ctx.showEditProjectDialog}
       showJiraSettingsDialog={props.ctx.showJiraSettingsDialog}
+      showTeamsSettingsDialog={props.ctx.showTeamsSettingsDialog}
       showProjectSettingsDialog={props.ctx.showProjectSettingsDialog}
       toggleProjectWorkspaces={props.ctx.toggleProjectWorkspaces}
       workspacesEnabled={props.ctx.workspacesEnabled}

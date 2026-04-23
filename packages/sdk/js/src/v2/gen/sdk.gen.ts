@@ -49,6 +49,11 @@ import type {
   GlobalHealthResponses,
   GlobalJiraDirsResponses,
   GlobalSyncEventSubscribeResponses,
+  GlobalTeamsDirsResponses,
+  GlobalTeamsLookupReplyResponses,
+  GlobalTeamsLookupResponses,
+  GlobalTeamsRecordReplyErrors,
+  GlobalTeamsRecordReplyResponses,
   GlobalUpgradeErrors,
   GlobalUpgradeResponses,
   InstanceDisposeResponses,
@@ -169,6 +174,11 @@ import type {
   SessionUpdateErrors,
   SessionUpdateResponses,
   SubtaskPartInput,
+  TeamsGetResponses,
+  TeamsRemoveResponses,
+  TeamsResolvedResponses,
+  TeamsUpsertErrors,
+  TeamsUpsertResponses,
   TextPartInput,
   ToolIdsErrors,
   ToolIdsResponses,
@@ -314,6 +324,99 @@ export class Jira extends HeyApiClient {
   }
 }
 
+export class Teams extends HeyApiClient {
+  /**
+   * List Teams-enabled project directories
+   *
+   * Return the worktree paths of all projects with Teams integration enabled.
+   */
+  public dirs<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
+    return (options?.client ?? this.client).get<GlobalTeamsDirsResponses, unknown, ThrowOnError>({
+      url: "/global/teams/dirs",
+      ...options,
+    })
+  }
+
+  /**
+   * Lookup project by Teams conversation ID
+   *
+   * Resolve a Bot Framework conversation ID to its bound project. Returns null when unbound.
+   */
+  public lookup<ThrowOnError extends boolean = false>(
+    parameters: {
+      conversation: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "conversation" }] }])
+    return (options?.client ?? this.client).get<GlobalTeamsLookupResponses, unknown, ThrowOnError>({
+      url: "/global/teams/lookup/{conversation}",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Record Teams reply mapping
+   *
+   * Persist a mapping from a Bot Framework message ID to its opencode session, so future Teams replies can resume the same session.
+   */
+  public recordReply<ThrowOnError extends boolean = false>(
+    parameters?: {
+      message_id?: string
+      session_id?: string
+      worktree?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "body", key: "message_id" },
+            { in: "body", key: "session_id" },
+            { in: "body", key: "worktree" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      GlobalTeamsRecordReplyResponses,
+      GlobalTeamsRecordReplyErrors,
+      ThrowOnError
+    >({
+      url: "/global/teams/reply",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Lookup session by Teams message ID
+   *
+   * Return the opencode session and worktree associated with a Bot Framework message ID, or null if no mapping exists.
+   */
+  public lookupReply<ThrowOnError extends boolean = false>(
+    parameters: {
+      message_id: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "message_id" }] }])
+    return (options?.client ?? this.client).get<GlobalTeamsLookupReplyResponses, unknown, ThrowOnError>({
+      url: "/global/teams/reply/{message_id}",
+      ...options,
+      ...params,
+    })
+  }
+}
+
 export class Global extends HeyApiClient {
   /**
    * Get health
@@ -388,6 +491,11 @@ export class Global extends HeyApiClient {
   private _jira?: Jira
   get jira(): Jira {
     return (this._jira ??= new Jira({ client: this.client }))
+  }
+
+  private _teams?: Teams
+  get teams(): Teams {
+    return (this._teams ??= new Teams({ client: this.client }))
   }
 }
 
@@ -3401,6 +3509,151 @@ export class Jira2 extends HeyApiClient {
   }
 }
 
+export class Teams2 extends HeyApiClient {
+  /**
+   * Delete Teams config
+   *
+   * Remove the Microsoft Teams integration config for the current project.
+   */
+  public remove<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).delete<TeamsRemoveResponses, unknown, ThrowOnError>({
+      url: "/teams",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Get Teams config
+   *
+   * Get the Microsoft Teams integration config for the current project.
+   */
+  public get<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<TeamsGetResponses, unknown, ThrowOnError>({
+      url: "/teams",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Upsert Teams config
+   *
+   * Create or update the Microsoft Teams integration config for the current project.
+   */
+  public upsert<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+      conversation_id?: string
+      service_url?: string
+      tenant_id?: string | null
+      trigger_mode?: "always" | "mention"
+      enabled?: boolean
+      agent?: string | null
+      model?: string | null
+      variant?: string | null
+      auto_accept?: boolean | null
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+            { in: "body", key: "conversation_id" },
+            { in: "body", key: "service_url" },
+            { in: "body", key: "tenant_id" },
+            { in: "body", key: "trigger_mode" },
+            { in: "body", key: "enabled" },
+            { in: "body", key: "agent" },
+            { in: "body", key: "model" },
+            { in: "body", key: "variant" },
+            { in: "body", key: "auto_accept" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).put<TeamsUpsertResponses, TeamsUpsertErrors, ThrowOnError>({
+      url: "/teams",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Get resolved Teams agent config
+   *
+   * Merged view of project defaults and Teams overrides, for the Teams bot worker.
+   */
+  public resolved<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<TeamsResolvedResponses, unknown, ThrowOnError>({
+      url: "/teams/resolved",
+      ...options,
+      ...params,
+    })
+  }
+}
+
 export class ProjectAgent extends HeyApiClient {
   /**
    * Get project agent config
@@ -4518,6 +4771,11 @@ export class OpencodeClient extends HeyApiClient {
   private _jira?: Jira2
   get jira(): Jira2 {
     return (this._jira ??= new Jira2({ client: this.client }))
+  }
+
+  private _teams?: Teams2
+  get teams(): Teams2 {
+    return (this._teams ??= new Teams2({ client: this.client }))
   }
 
   private _projectAgent?: ProjectAgent

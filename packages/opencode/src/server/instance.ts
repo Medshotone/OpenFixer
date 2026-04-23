@@ -27,6 +27,7 @@ import { ExperimentalRoutes } from "./routes/experimental"
 import { ProviderRoutes } from "./routes/provider"
 import { EventRoutes } from "./routes/event"
 import { JiraRoutes } from "./routes/jira"
+import { TeamsRoutes } from "./routes/teams"
 import { ProjectAgentRoutes } from "./routes/project-agent"
 import { errorHandler } from "./middleware"
 
@@ -57,6 +58,7 @@ export const InstanceRoutes = (app?: Hono) =>
     .route("/", FileRoutes())
     .route("/", EventRoutes())
     .route("/jira", JiraRoutes())
+    .route("/teams", TeamsRoutes())
     .route("/project-agent", ProjectAgentRoutes())
     .route("/mcp", McpRoutes())
     .route("/tui", TuiRoutes())

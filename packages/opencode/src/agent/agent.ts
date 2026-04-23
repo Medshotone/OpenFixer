@@ -12,6 +12,7 @@ import PROMPT_GENERATE from "./generate.txt"
 import PROMPT_COMPACTION from "./prompt/compaction.txt"
 import PROMPT_EXPLORE from "./prompt/explore.txt"
 import PROMPT_SUMMARY from "./prompt/summary.txt"
+import PROMPT_TEAMS from "./prompt/teams.txt"
 import PROMPT_TITLE from "./prompt/title.txt"
 import { Permission } from "@/permission"
 import { mergeDeep, pipe, sortBy, values } from "remeda"
@@ -137,6 +138,42 @@ export namespace Agent {
                     [path.join(".opencode", "plans", "*.md")]: "allow",
                     [path.relative(Instance.worktree, path.join(Global.Path.data, path.join("plans", "*.md")))]:
                       "allow",
+                  },
+                }),
+                user,
+              ),
+              mode: "primary",
+              native: true,
+            },
+            teams: {
+              name: "teams",
+              description:
+                "Microsoft Teams agent. Strict read-only research mode — cannot modify files, run shell commands, or change system state. Safe for shared chats where any member can tag the bot.",
+              options: {},
+              prompt: PROMPT_TEAMS,
+              permission: Permission.merge(
+                defaults,
+                Permission.fromConfig({
+                  "*": "deny",
+                  read: {
+                    "*": "allow",
+                    "*.env": "deny",
+                    "*.env.*": "deny",
+                    "*.env.example": "allow",
+                    "**/credentials*": "deny",
+                    "**/secret*": "deny",
+                    "**/.git/config": "deny",
+                  },
+                  grep: "allow",
+                  glob: "allow",
+                  list: "allow",
+                  codesearch: "allow",
+                  websearch: "allow",
+                  webfetch: "allow",
+                  question: "allow",
+                  external_directory: {
+                    "*": "deny",
+                    ...Object.fromEntries(whitelistedDirs.map((dir) => [dir, "allow"])),
                   },
                 }),
                 user,

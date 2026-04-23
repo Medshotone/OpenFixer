@@ -9,6 +9,7 @@ import DESCRIPTION from "./grep.txt"
 import { Instance } from "../project/instance"
 import path from "path"
 import { assertExternalDirectory } from "./external-directory"
+import { teamsDenyGlobs, teamsPathIsDenied } from "./teams-deny"
 
 const MAX_LINE_LENGTH = 2000
 
@@ -39,10 +40,17 @@ export const GrepTool = Tool.define("grep", {
     searchPath = path.isAbsolute(searchPath) ? searchPath : path.resolve(Instance.directory, searchPath)
     await assertExternalDirectory(ctx, searchPath, { kind: "directory" })
 
+    if (teamsPathIsDenied(searchPath, ctx.agent)) {
+      throw new Error(`grep denied: path is restricted for agent "${ctx.agent}"`)
+    }
+
     const rgPath = await Ripgrep.filepath()
     const args = ["-nH", "--hidden", "--no-messages", "--field-match-separator=|", "--regexp", params.pattern]
-    if (params.include) {
+    if (params.include && params.include !== "*" && params.include !== "**" && params.include !== "**/*") {
       args.push("--glob", params.include)
+    }
+    for (const g of teamsDenyGlobs(ctx.agent)) {
+      args.push("--glob", g)
     }
     args.push(searchPath)
 

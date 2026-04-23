@@ -1633,6 +1633,16 @@ export type BadRequestError = {
   success: false
 }
 
+export type TeamsBinding = {
+  project_id: string
+  worktree: string
+}
+
+export type TeamsReply = {
+  session_id: string
+  worktree: string
+}
+
 export type OAuth = {
   type: "oauth"
   refresh: string
@@ -1973,6 +1983,19 @@ export type File = {
   status: "added" | "deleted" | "modified"
 }
 
+export type TeamsConfig = {
+  project_id: string
+  conversation_id: string
+  service_url: string
+  tenant_id: string | null
+  trigger_mode: "always" | "mention"
+  enabled: boolean
+  agent: string | null
+  model: string | null
+  variant: string | null
+  auto_accept: boolean | null
+}
+
 export type ProjectAgentConfig = {
   project_id: string
   agent: string | null
@@ -2228,6 +2251,87 @@ export type GlobalJiraDirsResponses = {
 }
 
 export type GlobalJiraDirsResponse = GlobalJiraDirsResponses[keyof GlobalJiraDirsResponses]
+
+export type GlobalTeamsDirsData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/global/teams/dirs"
+}
+
+export type GlobalTeamsDirsResponses = {
+  /**
+   * List of project directories
+   */
+  200: Array<string>
+}
+
+export type GlobalTeamsDirsResponse = GlobalTeamsDirsResponses[keyof GlobalTeamsDirsResponses]
+
+export type GlobalTeamsLookupData = {
+  body?: never
+  path: {
+    conversation: string
+  }
+  query?: never
+  url: "/global/teams/lookup/{conversation}"
+}
+
+export type GlobalTeamsLookupResponses = {
+  /**
+   * Binding or null
+   */
+  200: TeamsBinding | null
+}
+
+export type GlobalTeamsLookupResponse = GlobalTeamsLookupResponses[keyof GlobalTeamsLookupResponses]
+
+export type GlobalTeamsRecordReplyData = {
+  body?: {
+    message_id: string
+    session_id: string
+    worktree: string
+  }
+  path?: never
+  query?: never
+  url: "/global/teams/reply"
+}
+
+export type GlobalTeamsRecordReplyErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type GlobalTeamsRecordReplyError = GlobalTeamsRecordReplyErrors[keyof GlobalTeamsRecordReplyErrors]
+
+export type GlobalTeamsRecordReplyResponses = {
+  /**
+   * Mapping recorded
+   */
+  200: boolean
+}
+
+export type GlobalTeamsRecordReplyResponse = GlobalTeamsRecordReplyResponses[keyof GlobalTeamsRecordReplyResponses]
+
+export type GlobalTeamsLookupReplyData = {
+  body?: never
+  path: {
+    message_id: string
+  }
+  query?: never
+  url: "/global/teams/reply/{message_id}"
+}
+
+export type GlobalTeamsLookupReplyResponses = {
+  /**
+   * Reply mapping or null
+   */
+  200: TeamsReply | null
+}
+
+export type GlobalTeamsLookupReplyResponse = GlobalTeamsLookupReplyResponses[keyof GlobalTeamsLookupReplyResponses]
 
 export type AuthRemoveData = {
   body?: never
@@ -4767,6 +4871,106 @@ export type JiraResolvedResponses = {
 }
 
 export type JiraResolvedResponse = JiraResolvedResponses[keyof JiraResolvedResponses]
+
+export type TeamsRemoveData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/teams"
+}
+
+export type TeamsRemoveResponses = {
+  /**
+   * Deleted
+   */
+  200: boolean
+}
+
+export type TeamsRemoveResponse = TeamsRemoveResponses[keyof TeamsRemoveResponses]
+
+export type TeamsGetData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/teams"
+}
+
+export type TeamsGetResponses = {
+  /**
+   * Teams config or null
+   */
+  200: TeamsConfig | null
+}
+
+export type TeamsGetResponse = TeamsGetResponses[keyof TeamsGetResponses]
+
+export type TeamsUpsertData = {
+  body?: {
+    conversation_id: string
+    service_url: string
+    tenant_id?: string | null
+    trigger_mode?: "always" | "mention"
+    enabled?: boolean
+    agent?: string | null
+    model?: string | null
+    variant?: string | null
+    auto_accept?: boolean | null
+  }
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/teams"
+}
+
+export type TeamsUpsertErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type TeamsUpsertError = TeamsUpsertErrors[keyof TeamsUpsertErrors]
+
+export type TeamsUpsertResponses = {
+  /**
+   * Updated Teams config
+   */
+  200: TeamsConfig
+}
+
+export type TeamsUpsertResponse = TeamsUpsertResponses[keyof TeamsUpsertResponses]
+
+export type TeamsResolvedData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/teams/resolved"
+}
+
+export type TeamsResolvedResponses = {
+  /**
+   * Resolved config
+   */
+  200: {
+    agent: string | null
+    model: string | null
+    variant: string | null
+    auto_accept: boolean
+  }
+}
+
+export type TeamsResolvedResponse = TeamsResolvedResponses[keyof TeamsResolvedResponses]
 
 export type ProjectAgentGetData = {
   body?: never

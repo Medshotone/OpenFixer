@@ -12,6 +12,7 @@ import { Log } from "../../util/log"
 import { lazy } from "../../util/lazy"
 import { Config } from "../../config/config"
 import { Jira } from "../../jira/index"
+import { Teams } from "../../teams/index"
 import { errors } from "../error"
 
 const log = Log.create({ service: "server" })
@@ -324,5 +325,70 @@ export const GlobalRoutes = lazy(() =>
         },
       }),
       (c) => c.json(Jira.listDirs()),
+    )
+    .get(
+      "/teams/dirs",
+      describeRoute({
+        summary: "List Teams-enabled project directories",
+        description: "Return the worktree paths of all projects with Teams integration enabled.",
+        operationId: "global.teams.dirs",
+        responses: {
+          200: {
+            description: "List of project directories",
+            content: { "application/json": { schema: resolver(z.string().array()) } },
+          },
+        },
+      }),
+      (c) => c.json(Teams.listDirs()),
+    )
+    .get(
+      "/teams/lookup/:conversation",
+      describeRoute({
+        summary: "Lookup project by Teams conversation ID",
+        description: "Resolve a Bot Framework conversation ID to its bound project. Returns null when unbound.",
+        operationId: "global.teams.lookup",
+        responses: {
+          200: {
+            description: "Binding or null",
+            content: { "application/json": { schema: resolver(Teams.Binding.nullable()) } },
+          },
+        },
+      }),
+      (c) => c.json(Teams.lookup(c.req.param("conversation"))),
+    )
+    .post(
+      "/teams/reply",
+      describeRoute({
+        summary: "Record Teams reply mapping",
+        description: "Persist a mapping from a Bot Framework message ID to its opencode session, so future Teams replies can resume the same session.",
+        operationId: "global.teams.recordReply",
+        responses: {
+          200: {
+            description: "Mapping recorded",
+            content: { "application/json": { schema: resolver(z.boolean()) } },
+          },
+          ...errors(400),
+        },
+      }),
+      validator("json", Teams.RecordReplyInput),
+      async (c) => {
+        Teams.recordReply(c.req.valid("json"))
+        return c.json(true)
+      },
+    )
+    .get(
+      "/teams/reply/:message_id",
+      describeRoute({
+        summary: "Lookup session by Teams message ID",
+        description: "Return the opencode session and worktree associated with a Bot Framework message ID, or null if no mapping exists.",
+        operationId: "global.teams.lookupReply",
+        responses: {
+          200: {
+            description: "Reply mapping or null",
+            content: { "application/json": { schema: resolver(Teams.Reply.nullable()) } },
+          },
+        },
+      }),
+      (c) => c.json(Teams.lookupReply(c.req.param("message_id"))),
     ),
 )
