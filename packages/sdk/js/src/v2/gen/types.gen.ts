@@ -1985,7 +1985,7 @@ export type File = {
 
 export type TeamsConfig = {
   project_id: string
-  conversation_id: string
+  conversation_ids: Array<string>
   service_url: string
   tenant_id: string | null
   trigger_mode: "always" | "mention"
@@ -4912,7 +4912,7 @@ export type TeamsGetResponse = TeamsGetResponses[keyof TeamsGetResponses]
 
 export type TeamsUpsertData = {
   body?: {
-    conversation_id: string
+    conversation_ids: Array<string>
     service_url: string
     tenant_id?: string | null
     trigger_mode?: "always" | "mention"

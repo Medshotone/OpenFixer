@@ -42,8 +42,15 @@ export const TeamsRoutes = lazy(() =>
       }),
       validator("json", Teams.UpsertInput),
       async (c) => {
-        const cfg = Teams.upsert(Instance.project.id, c.req.valid("json"))
-        return c.json(cfg)
+        try {
+          const cfg = Teams.upsert(Instance.project.id, c.req.valid("json"))
+          return c.json(cfg)
+        } catch (err) {
+          if (err instanceof Teams.ConflictError) {
+            return c.json({ error: err.message }, 400)
+          }
+          throw err
+        }
       },
     )
     .delete(

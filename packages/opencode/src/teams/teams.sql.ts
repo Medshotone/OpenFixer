@@ -8,7 +8,6 @@ export const TeamsConfigTable = sqliteTable("teams_config", {
     .$type<ProjectID>()
     .primaryKey()
     .references(() => ProjectTable.id, { onDelete: "cascade" }),
-  conversation_id: text().notNull().unique(),
   service_url: text().notNull(),
   tenant_id: text(),
   trigger_mode: text().notNull().default("always"),
@@ -17,6 +16,15 @@ export const TeamsConfigTable = sqliteTable("teams_config", {
   model: text(),
   variant: text(),
   auto_accept: integer({ mode: "boolean" }),
+  ...Timestamps,
+})
+
+export const TeamsConversationTable = sqliteTable("teams_conversation", {
+  conversation_id: text().primaryKey(),
+  project_id: text()
+    .$type<ProjectID>()
+    .notNull()
+    .references(() => TeamsConfigTable.project_id, { onDelete: "cascade" }),
   ...Timestamps,
 })
 

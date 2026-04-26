@@ -3,8 +3,8 @@ import { useDialog } from "@opencode-ai/ui/context/dialog"
 import { Dialog } from "@opencode-ai/ui/dialog"
 import { TextField } from "@opencode-ai/ui/text-field"
 import { useMutation } from "@tanstack/solid-query"
-import { createEffect } from "solid-js"
-import { createStore } from "solid-js/store"
+import { createEffect, For, createSignal } from "solid-js"
+import { createStore, produce } from "solid-js/store"
 import { useGlobalSDK } from "@/context/global-sdk"
 import { type LocalProject } from "@/context/layout"
 import { useLanguage } from "@/context/language"
@@ -17,7 +17,7 @@ export function DialogTeamsSettings(props: { project: LocalProject }) {
   const language = useLanguage()
 
   const [store, setStore] = createStore({
-    conversation_id: "",
+    conversation_ids: [""] as string[],
     service_url: "",
     tenant_id: "",
     trigger_mode: "always" as "always" | "mention",
@@ -28,6 +28,7 @@ export function DialogTeamsSettings(props: { project: LocalProject }) {
     auto_accept: null as boolean | null,
     inherited: null as AgentConfigInherited | null,
   })
+  const [error, setError] = createSignal<string | null>(null)
 
   const { agents, variants } = useAgentConfigOptions(
     () => props.project.worktree,
@@ -37,7 +38,8 @@ export function DialogTeamsSettings(props: { project: LocalProject }) {
   createEffect(async () => {
     const cfg = await globalSDK.client.teams.get({ directory: props.project.worktree })
     if (cfg.data) {
-      setStore("conversation_id", cfg.data.conversation_id ?? "")
+      const ids = cfg.data.conversation_ids ?? []
+      setStore("conversation_ids", ids.length ? ids : [""])
       setStore("service_url", cfg.data.service_url ?? "")
       setStore("tenant_id", cfg.data.tenant_id ?? "")
       setStore("trigger_mode", cfg.data.trigger_mode ?? "always")
@@ -51,21 +53,55 @@ export function DialogTeamsSettings(props: { project: LocalProject }) {
     setStore("inherited", pa.data ?? { agent: null, model: null, variant: null, auto_accept: false })
   })
 
+  function setId(i: number, v: string) {
+    setStore("conversation_ids", produce((arr) => { arr[i] = v }))
+  }
+
+  function addId() {
+    setStore("conversation_ids", produce((arr) => { arr.push("") }))
+  }
+
+  function removeId(i: number) {
+    setStore(
+      "conversation_ids",
+      produce((arr) => {
+        if (arr.length === 1) arr[0] = ""
+        else arr.splice(i, 1)
+      }),
+    )
+  }
+
   const saveMutation = useMutation(() => ({
     mutationFn: async () => {
-      await globalSDK.client.teams.upsert({
-        directory: props.project.worktree,
-        conversation_id: store.conversation_id.trim(),
-        service_url: store.service_url.trim(),
-        tenant_id: store.tenant_id.trim() || null,
-        trigger_mode: store.trigger_mode,
-        enabled: store.enabled,
-        agent: store.agent,
-        model: store.model,
-        variant: store.variant,
-        auto_accept: store.auto_accept,
-      })
-      dialog.close()
+      const ids = Array.from(
+        new Set(store.conversation_ids.map((s) => s.trim()).filter((s) => s.length > 0)),
+      )
+      if (ids.length === 0) {
+        setError(language.t("dialog.teams.conversation_ids.required"))
+        return
+      }
+      setError(null)
+      try {
+        await globalSDK.client.teams.upsert({
+          directory: props.project.worktree,
+          conversation_ids: ids,
+          service_url: store.service_url.trim(),
+          tenant_id: store.tenant_id.trim() || null,
+          trigger_mode: store.trigger_mode,
+          enabled: store.enabled,
+          agent: store.agent,
+          model: store.model,
+          variant: store.variant,
+          auto_accept: store.auto_accept,
+        })
+        dialog.close()
+      } catch (err) {
+        const msg =
+          (err as { error?: string })?.error ??
+          (err as Error)?.message ??
+          "Failed to save"
+        setError(msg)
+      }
     },
   }))
 
@@ -79,13 +115,38 @@ export function DialogTeamsSettings(props: { project: LocalProject }) {
     <Dialog title={language.t("dialog.teams.title")} class="w-full max-w-[480px] mx-auto">
       <form onSubmit={submit} class="flex flex-col gap-6 p-6 pt-0 overflow-y-auto">
         <div class="flex flex-col gap-4">
-          <TextField
-            autofocus
-            label={language.t("dialog.teams.conversation_id")}
-            placeholder={language.t("dialog.teams.conversation_id.placeholder")}
-            value={store.conversation_id}
-            onChange={(v) => setStore("conversation_id", v)}
-          />
+          <div class="flex flex-col gap-2">
+            <span class="text-14-regular text-text-base">
+              {language.t("dialog.teams.conversation_ids")}
+            </span>
+            <For each={store.conversation_ids}>
+              {(id, i) => (
+                <div class="flex items-center gap-2">
+                  <div class="flex-1">
+                    <TextField
+                      autofocus={i() === 0}
+                      placeholder={language.t("dialog.teams.conversation_ids.placeholder")}
+                      value={id}
+                      onChange={(v) => setId(i(), v)}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="small"
+                    title={language.t("dialog.teams.conversation_ids.remove")}
+                    onClick={() => removeId(i())}
+                  >
+                    ×
+                  </Button>
+                </div>
+              )}
+            </For>
+            <Button type="button" variant="ghost" size="small" onClick={addId}>
+              {language.t("dialog.teams.conversation_ids.add")}
+            </Button>
+            {error() && <span class="text-14-regular text-text-danger">{error()}</span>}
+          </div>
           <TextField
             type="url"
             label={language.t("dialog.teams.service_url")}

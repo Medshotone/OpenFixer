@@ -28,7 +28,7 @@ async function seed() {
 }
 
 const base = {
-  conversation_id: "c1",
+  conversation_ids: ["c1"],
   service_url: "https://smba.trafficmanager.net/emea/",
   trigger_mode: "always" as const,
   enabled: true,

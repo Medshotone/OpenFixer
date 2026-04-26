@@ -390,8 +390,11 @@ export const dict = {
   "dialog.jira.test.failed": "Connection failed",
 
   "dialog.teams.title": "Microsoft Teams Integration",
-  "dialog.teams.conversation_id": "Conversation ID",
-  "dialog.teams.conversation_id.placeholder": "Paste the ID the bot reports in an unbound conversation",
+  "dialog.teams.conversation_ids": "Conversation IDs",
+  "dialog.teams.conversation_ids.placeholder": "Paste the ID the bot reports in an unbound conversation",
+  "dialog.teams.conversation_ids.add": "+ Add Conversation ID",
+  "dialog.teams.conversation_ids.remove": "Remove",
+  "dialog.teams.conversation_ids.required": "Add at least one conversation ID",
   "dialog.teams.service_url": "Service URL",
   "dialog.teams.service_url.placeholder": "e.g. https://smba.trafficmanager.net/emea/",
   "dialog.teams.tenant_id": "Tenant ID",

@@ -3579,7 +3579,7 @@ export class Teams2 extends HeyApiClient {
     parameters?: {
       directory?: string
       workspace?: string
-      conversation_id?: string
+      conversation_ids?: Array<string>
       service_url?: string
       tenant_id?: string | null
       trigger_mode?: "always" | "mention"
@@ -3598,7 +3598,7 @@ export class Teams2 extends HeyApiClient {
           args: [
             { in: "query", key: "directory" },
             { in: "query", key: "workspace" },
-            { in: "body", key: "conversation_id" },
+            { in: "body", key: "conversation_ids" },
             { in: "body", key: "service_url" },
             { in: "body", key: "tenant_id" },
             { in: "body", key: "trigger_mode" },
