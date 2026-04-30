@@ -38,10 +38,16 @@ adapter.onTurnError = async (ctx, err) => {
   await ctx.sendActivity("Sorry, something went wrong handling your message.").catch(() => undefined)
 }
 
-const global = createOpencodeClient({ baseUrl: base })
+const opencodeUser = process.env.OPENCODE_SERVER_USERNAME ?? "opencode"
+const opencodePass = process.env.OPENCODE_SERVER_PASSWORD
+const opencodeHeaders = opencodePass
+  ? { Authorization: `Basic ${Buffer.from(`${opencodeUser}:${opencodePass}`).toString("base64")}` }
+  : undefined
+
+const global = createOpencodeClient({ baseUrl: base, headers: opencodeHeaders })
 const clients = new Map<string, ReturnType<typeof createOpencodeClient>>()
 function client(dir: string) {
-  if (!clients.has(dir)) clients.set(dir, createOpencodeClient({ baseUrl: base, directory: dir }))
+  if (!clients.has(dir)) clients.set(dir, createOpencodeClient({ baseUrl: base, directory: dir, headers: opencodeHeaders }))
   return clients.get(dir)!
 }
 
