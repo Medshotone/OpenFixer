@@ -390,5 +390,69 @@ export const GlobalRoutes = lazy(() =>
         },
       }),
       (c) => c.json(Teams.lookupReply(c.req.param("message_id"))),
+    )
+    .get(
+      "/teams/dm/:conversation",
+      describeRoute({
+        summary: "Get DM active project",
+        description: "Get the active project selection for a 1:1 Teams DM conversation.",
+        operationId: "global.teams.dmGet",
+        responses: {
+          200: {
+            description: "DM state or null",
+            content: { "application/json": { schema: resolver(Teams.DmState.nullable()) } },
+          },
+        },
+      }),
+      async (c) => {
+        const state = Teams.dmGet(c.req.param("conversation"))
+        return c.json(state)
+      },
+    )
+    .put(
+      "/teams/dm/:conversation",
+      describeRoute({
+        summary: "Set DM active project",
+        description: "Switch the active project for a 1:1 Teams DM conversation. Enforces allowlist.",
+        operationId: "global.teams.dmSet",
+        responses: {
+          200: {
+            description: "Updated DM state",
+            content: { "application/json": { schema: resolver(Teams.DmState) } },
+          },
+          ...errors(400),
+        },
+      }),
+      validator("json", z.object({
+        project_id: z.string().min(1),
+        aad_user_id: z.string().min(1),
+      })),
+      async (c) => {
+        const { project_id, aad_user_id } = c.req.valid("json")
+        try {
+          const state = Teams.dmSet(c.req.param("conversation"), project_id, aad_user_id)
+          return c.json(state)
+        } catch (err) {
+          if (err instanceof Teams.AccessError) return c.json({ error: err.message }, 400)
+          throw err
+        }
+      },
+    )
+    .get(
+      "/teams/dm-projects/:aad_user_id",
+      describeRoute({
+        summary: "List DM-accessible projects for a user",
+        description: "Returns enabled projects the given AAD user is allowlisted on.",
+        operationId: "global.teams.dmProjectsForUser",
+        responses: {
+          200: {
+            description: "Accessible projects",
+            content: {
+              "application/json": { schema: resolver(z.array(Teams.EnabledProject)) },
+            },
+          },
+        },
+      }),
+      async (c) => c.json(Teams.listForUser(c.req.param("aad_user_id"))),
     ),
 )

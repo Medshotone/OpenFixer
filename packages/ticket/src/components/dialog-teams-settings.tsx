@@ -18,6 +18,7 @@ export function DialogTeamsSettings(props: { project: LocalProject }) {
 
   const [store, setStore] = createStore({
     conversation_ids: [""] as string[],
+    dm_user_ids: [] as string[],
     service_url: "",
     tenant_id: "",
     trigger_mode: "always" as "always" | "mention",
@@ -40,6 +41,7 @@ export function DialogTeamsSettings(props: { project: LocalProject }) {
     if (cfg.data) {
       const ids = cfg.data.conversation_ids ?? []
       setStore("conversation_ids", ids.length ? ids : [""])
+      setStore("dm_user_ids", cfg.data.dm_user_ids ?? [])
       setStore("service_url", cfg.data.service_url ?? "")
       setStore("tenant_id", cfg.data.tenant_id ?? "")
       setStore("trigger_mode", cfg.data.trigger_mode ?? "always")
@@ -71,6 +73,24 @@ export function DialogTeamsSettings(props: { project: LocalProject }) {
     )
   }
 
+  function setDmUser(i: number, v: string) {
+    setStore("dm_user_ids", produce((arr) => { arr[i] = v }))
+  }
+
+  function addDmUser() {
+    setStore("dm_user_ids", produce((arr) => { arr.push("") }))
+  }
+
+  function removeDmUser(i: number) {
+    setStore(
+      "dm_user_ids",
+      produce((arr) => {
+        if (arr.length === 1) arr[0] = ""
+        else arr.splice(i, 1)
+      }),
+    )
+  }
+
   const saveMutation = useMutation(() => ({
     mutationFn: async () => {
       const ids = Array.from(
@@ -81,10 +101,14 @@ export function DialogTeamsSettings(props: { project: LocalProject }) {
         return
       }
       setError(null)
+      const dmUsers = Array.from(
+        new Set(store.dm_user_ids.map((s) => s.trim()).filter((s) => s.length > 0)),
+      )
       try {
         await globalSDK.client.teams.upsert({
           directory: props.project.worktree,
           conversation_ids: ids,
+          dm_user_ids: dmUsers,
           service_url: store.service_url.trim(),
           tenant_id: store.tenant_id.trim() || null,
           trigger_mode: store.trigger_mode,
@@ -146,6 +170,39 @@ export function DialogTeamsSettings(props: { project: LocalProject }) {
               {language.t("dialog.teams.conversation_ids.add")}
             </Button>
             {error() && <span class="text-14-regular text-text-danger">{error()}</span>}
+          </div>
+          <div class="flex flex-col gap-2">
+            <span class="text-14-regular text-text-base">
+              {language.t("dialog.teams.dm_user_ids")}
+            </span>
+            <span class="text-12-regular text-text-subtle">
+              {language.t("dialog.teams.dm_user_ids.help")}
+            </span>
+            <For each={store.dm_user_ids.length ? store.dm_user_ids : []}>
+              {(uid, i) => (
+                <div class="flex items-center gap-2">
+                  <div class="flex-1">
+                    <TextField
+                      placeholder={language.t("dialog.teams.dm_user_ids.placeholder")}
+                      value={uid}
+                      onChange={(v) => setDmUser(i(), v)}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="small"
+                    title={language.t("dialog.teams.dm_user_ids.remove")}
+                    onClick={() => removeDmUser(i())}
+                  >
+                    ×
+                  </Button>
+                </div>
+              )}
+            </For>
+            <Button type="button" variant="ghost" size="small" onClick={addDmUser}>
+              {language.t("dialog.teams.dm_user_ids.add")}
+            </Button>
           </div>
           <TextField
             type="url"

@@ -1,6 +1,6 @@
 import z from "zod"
-import { Database, eq, and, inArray, ne } from "../storage/db"
-import { TeamsConfigTable, TeamsConversationTable, TeamsReplyTable } from "./teams.sql"
+import { Database, eq, and, inArray, ne, sql } from "../storage/db"
+import { TeamsConfigTable, TeamsConversationTable, TeamsReplyTable, TeamsDmUserTable, TeamsDmStateTable } from "./teams.sql"
 import { ProjectTable } from "../project/project.sql"
 import { ProjectAgent } from "../project-agent"
 import type { ProjectID } from "../project/schema"
@@ -18,6 +18,7 @@ export namespace Teams {
       model: z.string().nullable(),
       variant: z.string().nullable(),
       auto_accept: z.boolean().nullable(),
+      dm_user_ids: z.array(z.string()),
     })
     .meta({ ref: "TeamsConfig" })
   export type Info = z.infer<typeof Info>
@@ -32,6 +33,7 @@ export namespace Teams {
     model: z.string().nullable().optional(),
     variant: z.string().nullable().optional(),
     auto_accept: z.boolean().nullable().optional(),
+    dm_user_ids: z.array(z.string().trim().min(1)).optional().default([]),
   })
   export type UpsertInput = z.infer<typeof UpsertInput>
 
@@ -39,6 +41,13 @@ export namespace Teams {
     constructor(public readonly conversation_id: string) {
       super(`Conversation ID "${conversation_id}" is already bound to another project`)
       this.name = "TeamsConflictError"
+    }
+  }
+
+  export class AccessError extends Error {
+    constructor(public readonly aad_user_id: string, public readonly project_id: string) {
+      super(`User ${aad_user_id} is not allowlisted for project ${project_id}`)
+      this.name = "TeamsAccessError"
     }
   }
 
@@ -58,26 +67,34 @@ export namespace Teams {
         .where(eq(TeamsConfigTable.project_id, pid as ProjectID))
         .get()
       if (!cfg) return undefined
-      const ids = db
+      const conv = db
         .select({ id: TeamsConversationTable.conversation_id })
         .from(TeamsConversationTable)
         .where(eq(TeamsConversationTable.project_id, pid as ProjectID))
         .all()
         .map((r) => r.id)
-      return { ...cfg, conversation_ids: ids } as Info
+      const users = db
+        .select({ aad: TeamsDmUserTable.aad_user_id })
+        .from(TeamsDmUserTable)
+        .where(eq(TeamsDmUserTable.project_id, pid as ProjectID))
+        .all()
+        .map((r) => r.aad)
+      return { ...cfg, conversation_ids: conv, dm_user_ids: users } as Info
     })
   }
 
-  export function upsert(pid: string, data: UpsertInput): Info {
-    const ids = Array.from(new Set(data.conversation_ids))
-    const { conversation_ids: _, ...cfgFields } = data
+  export function upsert(pid: string, raw: z.input<typeof UpsertInput>): Info {
+    const data = UpsertInput.parse(raw)
+    const conv = Array.from(new Set(data.conversation_ids))
+    const users = Array.from(new Set(data.dm_user_ids))
+    const { conversation_ids: _c, dm_user_ids: _u, ...cfg } = data
     Database.transaction((db) => {
       const conflicts = db
         .select({ id: TeamsConversationTable.conversation_id })
         .from(TeamsConversationTable)
         .where(
           and(
-            inArray(TeamsConversationTable.conversation_id, ids),
+            inArray(TeamsConversationTable.conversation_id, conv),
             ne(TeamsConversationTable.project_id, pid as ProjectID),
           ),
         )
@@ -85,17 +102,25 @@ export namespace Teams {
       if (conflicts.length) throw new ConflictError(conflicts[0].id)
 
       db.insert(TeamsConfigTable)
-        .values({ project_id: pid as ProjectID, ...cfgFields })
-        .onConflictDoUpdate({ target: TeamsConfigTable.project_id, set: cfgFields })
+        .values({ project_id: pid as ProjectID, ...cfg })
+        .onConflictDoUpdate({ target: TeamsConfigTable.project_id, set: cfg })
         .run()
 
       db.delete(TeamsConversationTable)
         .where(eq(TeamsConversationTable.project_id, pid as ProjectID))
         .run()
-
       db.insert(TeamsConversationTable)
-        .values(ids.map((id) => ({ conversation_id: id, project_id: pid as ProjectID })))
+        .values(conv.map((id) => ({ conversation_id: id, project_id: pid as ProjectID })))
         .run()
+
+      db.delete(TeamsDmUserTable)
+        .where(eq(TeamsDmUserTable.project_id, pid as ProjectID))
+        .run()
+      if (users.length) {
+        db.insert(TeamsDmUserTable)
+          .values(users.map((aad) => ({ project_id: pid as ProjectID, aad_user_id: aad })))
+          .run()
+      }
     })
     return get(pid)!
   }
@@ -115,6 +140,70 @@ export namespace Teams {
         .where(eq(TeamsConfigTable.enabled, true))
         .all(),
     ).map((r) => r.worktree)
+  }
+
+  export function listForUser(aad: string): EnabledProject[] {
+    return Database.use((db) =>
+      db
+        .select({
+          project_id: TeamsDmUserTable.project_id,
+          name: sql<string>`COALESCE(${ProjectTable.name}, ${ProjectTable.id})`,
+          worktree: ProjectTable.worktree,
+        })
+        .from(TeamsDmUserTable)
+        .innerJoin(TeamsConfigTable, eq(TeamsConfigTable.project_id, TeamsDmUserTable.project_id))
+        .innerJoin(ProjectTable, eq(ProjectTable.id, TeamsDmUserTable.project_id))
+        .where(and(eq(TeamsDmUserTable.aad_user_id, aad), eq(TeamsConfigTable.enabled, true)))
+        .all(),
+    )
+  }
+
+  export function dmSet(conv: string, pid: string, aad: string): DmState {
+    if (!hasAccess(aad, pid)) throw new AccessError(aad, pid)
+    Database.use((db) =>
+      db
+        .insert(TeamsDmStateTable)
+        .values({ conversation_id: conv, project_id: pid as ProjectID })
+        .onConflictDoUpdate({
+          target: TeamsDmStateTable.conversation_id,
+          set: { project_id: pid as ProjectID },
+        })
+        .run(),
+    )
+    return dmGet(conv)!
+  }
+
+  export function dmGet(conv: string): DmState | null {
+    const row = Database.use((db) =>
+      db
+        .select({
+          conversation_id: TeamsDmStateTable.conversation_id,
+          project_id: TeamsDmStateTable.project_id,
+          name: sql<string>`COALESCE(${ProjectTable.name}, ${ProjectTable.id})`,
+        })
+        .from(TeamsDmStateTable)
+        .innerJoin(ProjectTable, eq(ProjectTable.id, TeamsDmStateTable.project_id))
+        .where(eq(TeamsDmStateTable.conversation_id, conv))
+        .get(),
+    )
+    return row ?? null
+  }
+
+  export function hasAccess(aad: string, pid: string): boolean {
+    return Database.use((db) =>
+      db
+        .select({ pid: TeamsDmUserTable.project_id })
+        .from(TeamsDmUserTable)
+        .innerJoin(TeamsConfigTable, eq(TeamsConfigTable.project_id, TeamsDmUserTable.project_id))
+        .where(
+          and(
+            eq(TeamsDmUserTable.aad_user_id, aad),
+            eq(TeamsDmUserTable.project_id, pid as ProjectID),
+            eq(TeamsConfigTable.enabled, true),
+          ),
+        )
+        .get(),
+    ) !== undefined
   }
 
   export function lookup(conv: string): Binding | null {
@@ -146,14 +235,34 @@ export namespace Teams {
     .object({
       session_id: z.string(),
       worktree: z.string(),
+      project_id: z.string().nullable(),
     })
     .meta({ ref: "TeamsReply" })
   export type Reply = z.infer<typeof Reply>
+
+  export const DmState = z
+    .object({
+      conversation_id: z.string(),
+      project_id: z.string(),
+      name: z.string(),
+    })
+    .meta({ ref: "TeamsDmState" })
+  export type DmState = z.infer<typeof DmState>
+
+  export const EnabledProject = z
+    .object({
+      project_id: z.string(),
+      name: z.string(),
+      worktree: z.string(),
+    })
+    .meta({ ref: "TeamsEnabledProject" })
+  export type EnabledProject = z.infer<typeof EnabledProject>
 
   export const RecordReplyInput = z.object({
     message_id: z.string().min(1),
     session_id: z.string().min(1),
     worktree: z.string().min(1),
+    project_id: z.string().min(1).optional(),
   })
   export type RecordReplyInput = z.infer<typeof RecordReplyInput>
 
@@ -165,10 +274,15 @@ export namespace Teams {
           message_id: data.message_id,
           session_id: data.session_id,
           worktree: data.worktree,
+          project_id: (data.project_id ?? null) as ProjectID | null,
         })
         .onConflictDoUpdate({
           target: TeamsReplyTable.message_id,
-          set: { session_id: data.session_id, worktree: data.worktree },
+          set: {
+            session_id: data.session_id,
+            worktree: data.worktree,
+            project_id: (data.project_id ?? null) as ProjectID | null,
+          },
         })
         .run(),
     )
@@ -177,11 +291,16 @@ export namespace Teams {
   export function lookupReply(mid: string): Reply | null {
     const row = Database.use((db) =>
       db
-        .select({ session_id: TeamsReplyTable.session_id, worktree: TeamsReplyTable.worktree })
+        .select({
+          session_id: TeamsReplyTable.session_id,
+          worktree: TeamsReplyTable.worktree,
+          project_id: TeamsReplyTable.project_id,
+        })
         .from(TeamsReplyTable)
         .where(eq(TeamsReplyTable.message_id, mid))
         .get(),
     )
-    return row ?? null
+    if (!row) return null
+    return { session_id: row.session_id, worktree: row.worktree, project_id: row.project_id ?? null }
   }
 }

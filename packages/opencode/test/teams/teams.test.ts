@@ -209,4 +209,202 @@ describe("Teams CRUD", () => {
     expect(Teams.lookup("a")).toBeNull()
     expect(Teams.lookup("b")).toBeNull()
   })
+
+  test("upsert stores and returns dm_user_ids", async () => {
+    const pid = await seed()
+    const cfg = Teams.upsert(pid, {
+      conversation_ids: ["c1"],
+      service_url: "https://x/",
+      trigger_mode: "always",
+      enabled: true,
+      dm_user_ids: ["aad-1", "aad-2"],
+    })
+    expect(cfg.dm_user_ids.sort()).toEqual(["aad-1", "aad-2"])
+    expect(Teams.get(pid)?.dm_user_ids.sort()).toEqual(["aad-1", "aad-2"])
+  })
+
+  test("upsert defaults dm_user_ids to empty array", async () => {
+    const pid = await seed()
+    const cfg = Teams.upsert(pid, Teams.UpsertInput.parse({
+      conversation_ids: ["c1"],
+      service_url: "https://x/",
+    }))
+    expect(cfg.dm_user_ids).toEqual([])
+  })
+
+  test("upsert replaces dm_user_ids on rewrite", async () => {
+    const pid = await seed()
+    Teams.upsert(pid, {
+      conversation_ids: ["c1"],
+      service_url: "https://x/",
+      trigger_mode: "always",
+      enabled: true,
+      dm_user_ids: ["aad-1", "aad-2"],
+    })
+    Teams.upsert(pid, {
+      conversation_ids: ["c1"],
+      service_url: "https://x/",
+      trigger_mode: "always",
+      enabled: true,
+      dm_user_ids: ["aad-3"],
+    })
+    expect(Teams.get(pid)?.dm_user_ids.sort()).toEqual(["aad-3"])
+  })
+
+  test("upsert with empty dm_user_ids clears existing entries", async () => {
+    const pid = await seed()
+    Teams.upsert(pid, {
+      conversation_ids: ["c1"],
+      service_url: "https://x/",
+      trigger_mode: "always",
+      enabled: true,
+      dm_user_ids: ["aad-1"],
+    })
+    Teams.upsert(pid, {
+      conversation_ids: ["c1"],
+      service_url: "https://x/",
+      trigger_mode: "always",
+      enabled: true,
+      dm_user_ids: [],
+    })
+    expect(Teams.get(pid)?.dm_user_ids).toEqual([])
+  })
+})
+
+describe("Teams DM allowlist queries", () => {
+  test("listForUser returns enabled allowlisted projects only", async () => {
+    const p1 = await seed("p1", "/tmp/p1")
+    const p2 = await seed("p2", "/tmp/p2")
+    const p3 = await seed("p3", "/tmp/p3")
+    Teams.upsert(p1, {
+      conversation_ids: ["c1"], service_url: "https://x/",
+      trigger_mode: "always", enabled: true, dm_user_ids: ["aad-1"],
+    })
+    Teams.upsert(p2, {
+      conversation_ids: ["c2"], service_url: "https://x/",
+      trigger_mode: "always", enabled: false, dm_user_ids: ["aad-1"],
+    })
+    Teams.upsert(p3, {
+      conversation_ids: ["c3"], service_url: "https://x/",
+      trigger_mode: "always", enabled: true, dm_user_ids: ["aad-other"],
+    })
+    const list = Teams.listForUser("aad-1")
+    expect(list.map((p) => p.project_id).sort()).toEqual([p1])
+    expect(list[0].worktree).toBe("/tmp/p1")
+    expect(typeof list[0].name).toBe("string")
+  })
+
+  test("listForUser returns empty for unknown user", async () => {
+    await seed()
+    expect(Teams.listForUser("nobody")).toEqual([])
+  })
+
+  test("hasAccess true for allowlisted user on enabled project", async () => {
+    const pid = await seed()
+    Teams.upsert(pid, {
+      conversation_ids: ["c1"], service_url: "https://x/",
+      trigger_mode: "always", enabled: true, dm_user_ids: ["aad-1"],
+    })
+    expect(Teams.hasAccess("aad-1", pid)).toBe(true)
+  })
+
+  test("hasAccess false for non-allowlisted user", async () => {
+    const pid = await seed()
+    Teams.upsert(pid, {
+      conversation_ids: ["c1"], service_url: "https://x/",
+      trigger_mode: "always", enabled: true, dm_user_ids: ["aad-1"],
+    })
+    expect(Teams.hasAccess("aad-other", pid)).toBe(false)
+  })
+
+  test("hasAccess false when project disabled", async () => {
+    const pid = await seed()
+    Teams.upsert(pid, {
+      conversation_ids: ["c1"], service_url: "https://x/",
+      trigger_mode: "always", enabled: false, dm_user_ids: ["aad-1"],
+    })
+    expect(Teams.hasAccess("aad-1", pid)).toBe(false)
+  })
+
+  test("hasAccess false when project has no Teams config", async () => {
+    const pid = await seed()
+    expect(Teams.hasAccess("aad-anything", pid)).toBe(false)
+  })
+})
+
+describe("Teams reply project_id", () => {
+  test("recordReply round-trips project_id", async () => {
+    const pid = await seed()
+    Teams.recordReply({ message_id: "m1", session_id: "s1", worktree: "/tmp/test", project_id: pid })
+    const hit = Teams.lookupReply("m1")
+    expect(hit?.session_id).toBe("s1")
+    expect(hit?.worktree).toBe("/tmp/test")
+    expect(hit?.project_id).toBe(pid)
+  })
+
+  test("recordReply without project_id stores null", async () => {
+    Teams.recordReply({ message_id: "m1", session_id: "s1", worktree: "/tmp/test" })
+    const hit = Teams.lookupReply("m1")
+    expect(hit?.project_id ?? null).toBeNull()
+  })
+})
+
+describe("Teams DM state", () => {
+  test("dmGet returns null for unknown conversation", async () => {
+    expect(Teams.dmGet("19:nosuch")).toBeNull()
+  })
+
+  test("dmSet stores selection when user has access", async () => {
+    const pid = await seed()
+    Teams.upsert(pid, {
+      conversation_ids: ["c1"], service_url: "https://x/",
+      trigger_mode: "always", enabled: true, dm_user_ids: ["aad-1"],
+    })
+    const state = Teams.dmSet("19:dm", pid, "aad-1")
+    expect(state.conversation_id).toBe("19:dm")
+    expect(state.project_id).toBe(pid)
+    expect(typeof state.name).toBe("string")
+    expect(Teams.dmGet("19:dm")?.project_id).toBe(pid)
+  })
+
+  test("dmSet throws AccessError when user not allowlisted", async () => {
+    const pid = await seed()
+    Teams.upsert(pid, {
+      conversation_ids: ["c1"], service_url: "https://x/",
+      trigger_mode: "always", enabled: true, dm_user_ids: ["aad-1"],
+    })
+    expect(() => Teams.dmSet("19:dm", pid, "aad-other")).toThrow(Teams.AccessError)
+    expect(Teams.dmGet("19:dm")).toBeNull()
+  })
+
+  test("dmSet upsert overwrites previous selection in same conversation", async () => {
+    const p1 = await seed("p1", "/tmp/p1")
+    const p2 = await seed("p2", "/tmp/p2")
+    Teams.upsert(p1, {
+      conversation_ids: ["c1"], service_url: "https://x/",
+      trigger_mode: "always", enabled: true, dm_user_ids: ["aad-1"],
+    })
+    Teams.upsert(p2, {
+      conversation_ids: ["c2"], service_url: "https://x/",
+      trigger_mode: "always", enabled: true, dm_user_ids: ["aad-1"],
+    })
+    Teams.dmSet("19:dm", p1, "aad-1")
+    Teams.dmSet("19:dm", p2, "aad-1")
+    expect(Teams.dmGet("19:dm")?.project_id).toBe(p2)
+  })
+
+  test("dm_state survives admin revocation (lazy invalidation)", async () => {
+    const pid = await seed()
+    Teams.upsert(pid, {
+      conversation_ids: ["c1"], service_url: "https://x/",
+      trigger_mode: "always", enabled: true, dm_user_ids: ["aad-1"],
+    })
+    Teams.dmSet("19:dm", pid, "aad-1")
+    Teams.upsert(pid, {
+      conversation_ids: ["c1"], service_url: "https://x/",
+      trigger_mode: "always", enabled: true, dm_user_ids: [],
+    })
+    expect(Teams.dmGet("19:dm")?.project_id).toBe(pid)
+    expect(Teams.hasAccess("aad-1", pid)).toBe(false)
+  })
 })

@@ -50,6 +50,10 @@ import type {
   GlobalJiraDirsResponses,
   GlobalSyncEventSubscribeResponses,
   GlobalTeamsDirsResponses,
+  GlobalTeamsDmGetResponses,
+  GlobalTeamsDmProjectsForUserResponses,
+  GlobalTeamsDmSetErrors,
+  GlobalTeamsDmSetResponses,
   GlobalTeamsLookupReplyResponses,
   GlobalTeamsLookupResponses,
   GlobalTeamsRecordReplyErrors,
@@ -366,6 +370,7 @@ export class Teams extends HeyApiClient {
       message_id?: string
       session_id?: string
       worktree?: string
+      project_id?: string
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -377,6 +382,7 @@ export class Teams extends HeyApiClient {
             { in: "body", key: "message_id" },
             { in: "body", key: "session_id" },
             { in: "body", key: "worktree" },
+            { in: "body", key: "project_id" },
           ],
         },
       ],
@@ -411,6 +417,81 @@ export class Teams extends HeyApiClient {
     const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "message_id" }] }])
     return (options?.client ?? this.client).get<GlobalTeamsLookupReplyResponses, unknown, ThrowOnError>({
       url: "/global/teams/reply/{message_id}",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Get DM active project
+   *
+   * Get the active project selection for a 1:1 Teams DM conversation.
+   */
+  public dmGet<ThrowOnError extends boolean = false>(
+    parameters: {
+      conversation: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "conversation" }] }])
+    return (options?.client ?? this.client).get<GlobalTeamsDmGetResponses, unknown, ThrowOnError>({
+      url: "/global/teams/dm/{conversation}",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Set DM active project
+   *
+   * Switch the active project for a 1:1 Teams DM conversation. Enforces allowlist.
+   */
+  public dmSet<ThrowOnError extends boolean = false>(
+    parameters: {
+      conversation: string
+      project_id?: string
+      aad_user_id?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "conversation" },
+            { in: "body", key: "project_id" },
+            { in: "body", key: "aad_user_id" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).put<GlobalTeamsDmSetResponses, GlobalTeamsDmSetErrors, ThrowOnError>({
+      url: "/global/teams/dm/{conversation}",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * List DM-accessible projects for a user
+   *
+   * Returns enabled projects the given AAD user is allowlisted on.
+   */
+  public dmProjectsForUser<ThrowOnError extends boolean = false>(
+    parameters: {
+      aad_user_id: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "aad_user_id" }] }])
+    return (options?.client ?? this.client).get<GlobalTeamsDmProjectsForUserResponses, unknown, ThrowOnError>({
+      url: "/global/teams/dm-projects/{aad_user_id}",
       ...options,
       ...params,
     })
@@ -3588,6 +3669,7 @@ export class Teams2 extends HeyApiClient {
       model?: string | null
       variant?: string | null
       auto_accept?: boolean | null
+      dm_user_ids?: Array<string>
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -3607,6 +3689,7 @@ export class Teams2 extends HeyApiClient {
             { in: "body", key: "model" },
             { in: "body", key: "variant" },
             { in: "body", key: "auto_accept" },
+            { in: "body", key: "dm_user_ids" },
           ],
         },
       ],

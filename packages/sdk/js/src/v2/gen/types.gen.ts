@@ -1641,6 +1641,19 @@ export type TeamsBinding = {
 export type TeamsReply = {
   session_id: string
   worktree: string
+  project_id: string | null
+}
+
+export type TeamsDmState = {
+  conversation_id: string
+  project_id: string
+  name: string
+}
+
+export type TeamsEnabledProject = {
+  project_id: string
+  name: string
+  worktree: string
 }
 
 export type OAuth = {
@@ -1994,6 +2007,7 @@ export type TeamsConfig = {
   model: string | null
   variant: string | null
   auto_accept: boolean | null
+  dm_user_ids: Array<string>
 }
 
 export type ProjectAgentConfig = {
@@ -2291,6 +2305,7 @@ export type GlobalTeamsRecordReplyData = {
     message_id: string
     session_id: string
     worktree: string
+    project_id?: string
   }
   path?: never
   query?: never
@@ -2332,6 +2347,73 @@ export type GlobalTeamsLookupReplyResponses = {
 }
 
 export type GlobalTeamsLookupReplyResponse = GlobalTeamsLookupReplyResponses[keyof GlobalTeamsLookupReplyResponses]
+
+export type GlobalTeamsDmGetData = {
+  body?: never
+  path: {
+    conversation: string
+  }
+  query?: never
+  url: "/global/teams/dm/{conversation}"
+}
+
+export type GlobalTeamsDmGetResponses = {
+  /**
+   * DM state or null
+   */
+  200: TeamsDmState | null
+}
+
+export type GlobalTeamsDmGetResponse = GlobalTeamsDmGetResponses[keyof GlobalTeamsDmGetResponses]
+
+export type GlobalTeamsDmSetData = {
+  body?: {
+    project_id: string
+    aad_user_id: string
+  }
+  path: {
+    conversation: string
+  }
+  query?: never
+  url: "/global/teams/dm/{conversation}"
+}
+
+export type GlobalTeamsDmSetErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type GlobalTeamsDmSetError = GlobalTeamsDmSetErrors[keyof GlobalTeamsDmSetErrors]
+
+export type GlobalTeamsDmSetResponses = {
+  /**
+   * Updated DM state
+   */
+  200: TeamsDmState
+}
+
+export type GlobalTeamsDmSetResponse = GlobalTeamsDmSetResponses[keyof GlobalTeamsDmSetResponses]
+
+export type GlobalTeamsDmProjectsForUserData = {
+  body?: never
+  path: {
+    aad_user_id: string
+  }
+  query?: never
+  url: "/global/teams/dm-projects/{aad_user_id}"
+}
+
+export type GlobalTeamsDmProjectsForUserResponses = {
+  /**
+   * Accessible projects
+   */
+  200: Array<TeamsEnabledProject>
+}
+
+export type GlobalTeamsDmProjectsForUserResponse =
+  GlobalTeamsDmProjectsForUserResponses[keyof GlobalTeamsDmProjectsForUserResponses]
 
 export type AuthRemoveData = {
   body?: never
@@ -4921,6 +5003,7 @@ export type TeamsUpsertData = {
     model?: string | null
     variant?: string | null
     auto_accept?: boolean | null
+    dm_user_ids?: Array<string>
   }
   path?: never
   query?: {

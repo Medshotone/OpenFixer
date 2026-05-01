@@ -52,3 +52,42 @@ Per-project config is stored server-side in `teams_config` (keyed by `project_id
 ## Session lifetime
 
 Each incoming message creates a fresh opencode session. No thread-level session reuse. This matches the "one session per answer" semantic — if you want continuity across messages, that's a future enhancement.
+
+## DM mode
+
+In addition to channel/group-chat bindings, the bot supports 1:1 DM conversations where a single user can talk about any project they're allowlisted on.
+
+### Setup
+
+1. In the project's **Teams Settings** dialog (right-click project → Teams Settings), populate the **DM-allowed users** field with AAD object GUIDs of users who should be able to DM about this project.
+2. Each user can find their AAD GUID by typing `/id` in their DM with the bot.
+
+### Slash commands (DM only)
+
+- `/project` — open the project picker (or, if you have access to nothing, see your AAD ID with admin instructions).
+- `/id` — print your AAD GUID for sharing with an admin.
+
+### Manifest update
+
+For the slash commands to appear as compose-box suggestions, add to your Teams app manifest:
+
+```json
+{
+  "commandLists": [{
+    "scopes": ["personal"],
+    "commands": [
+      { "title": "/project", "description": "Pick or switch the active OpenFixer project" },
+      { "title": "/id",      "description": "Show your AAD user ID for admin pinning" }
+    ]
+  }]
+}
+```
+
+Re-zip the manifest and re-upload via *Apps → Manage your apps → Upload a custom app* in Teams.
+
+### Session model in DM
+
+- Each top-level DM message starts a fresh session in the active project.
+- Quote-replies (using Teams' "Reply" UI on a previous bot message) resume the parent's session, provided you still have access to that project.
+- Switching project (via the picker) does not end any in-flight sessions; it only affects the next top-level message.
+- Replies in DM mode include a small italic footer like `_Project: Funda_` so you can tell which project answered each turn.
