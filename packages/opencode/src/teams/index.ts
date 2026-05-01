@@ -1,5 +1,6 @@
+import path from "node:path"
 import z from "zod"
-import { Database, eq, and, inArray, ne, sql } from "../storage/db"
+import { Database, eq, and, inArray, ne } from "../storage/db"
 import { TeamsConfigTable, TeamsConversationTable, TeamsReplyTable, TeamsDmUserTable, TeamsDmStateTable } from "./teams.sql"
 import { ProjectTable } from "../project/project.sql"
 import { ProjectAgent } from "../project-agent"
@@ -143,11 +144,11 @@ export namespace Teams {
   }
 
   export function listForUser(aad: string): EnabledProject[] {
-    return Database.use((db) =>
+    const rows = Database.use((db) =>
       db
         .select({
           project_id: TeamsDmUserTable.project_id,
-          name: sql<string>`COALESCE(${ProjectTable.name}, ${ProjectTable.id})`,
+          name: ProjectTable.name,
           worktree: ProjectTable.worktree,
         })
         .from(TeamsDmUserTable)
@@ -156,6 +157,11 @@ export namespace Teams {
         .where(and(eq(TeamsDmUserTable.aad_user_id, aad), eq(TeamsConfigTable.enabled, true)))
         .all(),
     )
+    return rows.map((r) => ({
+      project_id: r.project_id,
+      name: r.name || path.basename(r.worktree) || r.project_id,
+      worktree: r.worktree,
+    }))
   }
 
   export function dmSet(conv: string, pid: string, aad: string): DmState {
@@ -179,14 +185,20 @@ export namespace Teams {
         .select({
           conversation_id: TeamsDmStateTable.conversation_id,
           project_id: TeamsDmStateTable.project_id,
-          name: sql<string>`COALESCE(${ProjectTable.name}, ${ProjectTable.id})`,
+          name: ProjectTable.name,
+          worktree: ProjectTable.worktree,
         })
         .from(TeamsDmStateTable)
         .innerJoin(ProjectTable, eq(ProjectTable.id, TeamsDmStateTable.project_id))
         .where(eq(TeamsDmStateTable.conversation_id, conv))
         .get(),
     )
-    return row ?? null
+    if (!row) return null
+    return {
+      conversation_id: row.conversation_id,
+      project_id: row.project_id,
+      name: row.name || path.basename(row.worktree) || row.project_id,
+    }
   }
 
   export function hasAccess(aad: string, pid: string): boolean {

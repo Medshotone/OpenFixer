@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test"
+import { eq } from "drizzle-orm"
 import { Log } from "../../src/util/log"
 import { resetDatabase } from "../fixture/db"
 import { Database } from "../../src/storage/db"
@@ -299,6 +300,39 @@ describe("Teams DM allowlist queries", () => {
     expect(Teams.listForUser("nobody")).toEqual([])
   })
 
+  test("listForUser falls back to worktree basename when name is null", async () => {
+    const pid = await seed("p-null", "/var/www/work/fundaactive")
+    Teams.upsert(pid, {
+      conversation_ids: ["c1"], service_url: "https://x/",
+      trigger_mode: "always", enabled: true, dm_user_ids: ["aad-1"],
+    })
+    expect(Teams.listForUser("aad-1")[0].name).toBe("fundaactive")
+  })
+
+  test("listForUser falls back to worktree basename when name is empty string", async () => {
+    const pid = await seed("p-empty", "/var/www/work/fundaactive")
+    Database.use((db) =>
+      db.update(ProjectTable).set({ name: "" }).where(eq(ProjectTable.id, pid)).run(),
+    )
+    Teams.upsert(pid, {
+      conversation_ids: ["c1"], service_url: "https://x/",
+      trigger_mode: "always", enabled: true, dm_user_ids: ["aad-1"],
+    })
+    expect(Teams.listForUser("aad-1")[0].name).toBe("fundaactive")
+  })
+
+  test("listForUser uses real name when set", async () => {
+    const pid = await seed("p-named", "/var/www/work/fundaactive")
+    Database.use((db) =>
+      db.update(ProjectTable).set({ name: "Funda Production" }).where(eq(ProjectTable.id, pid)).run(),
+    )
+    Teams.upsert(pid, {
+      conversation_ids: ["c1"], service_url: "https://x/",
+      trigger_mode: "always", enabled: true, dm_user_ids: ["aad-1"],
+    })
+    expect(Teams.listForUser("aad-1")[0].name).toBe("Funda Production")
+  })
+
   test("hasAccess true for allowlisted user on enabled project", async () => {
     const pid = await seed()
     Teams.upsert(pid, {
@@ -352,6 +386,19 @@ describe("Teams reply project_id", () => {
 describe("Teams DM state", () => {
   test("dmGet returns null for unknown conversation", async () => {
     expect(Teams.dmGet("19:nosuch")).toBeNull()
+  })
+
+  test("dmGet falls back to worktree basename for null and empty-string names", async () => {
+    const pid = await seed("p-funda", "/var/www/work/fundaactive")
+    Database.use((db) =>
+      db.update(ProjectTable).set({ name: "" }).where(eq(ProjectTable.id, pid)).run(),
+    )
+    Teams.upsert(pid, {
+      conversation_ids: ["c1"], service_url: "https://x/",
+      trigger_mode: "always", enabled: true, dm_user_ids: ["aad-1"],
+    })
+    Teams.dmSet("19:dm", pid, "aad-1")
+    expect(Teams.dmGet("19:dm")?.name).toBe("fundaactive")
   })
 
   test("dmSet stores selection when user has access", async () => {
